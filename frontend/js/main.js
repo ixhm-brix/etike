@@ -16,27 +16,7 @@ const MODE_CTA = {
   shared: "Find a shared seat",
 };
 
-// 1. Show whether the system is online.
-(async function showStatus() {
-  const badge = document.getElementById("status");
-  const text = document.getElementById("status-text");
-  if (!badge || !text) return;
-
-  try {
-    const health = await api.get("/health");
-    const allOk = health.status === "ok" && health.database === "ok";
-    badge.dataset.state = allOk ? "online" : "degraded";
-    text.textContent = allOk ? "System online" : "Limited service";
-  } catch (err) {
-    // A 503 from the health check still carries a JSON body: the API is up
-    // but the database is not.
-    const apiUp = err.status === 503;
-    badge.dataset.state = apiUp ? "degraded" : "offline";
-    text.textContent = apiUp ? "Limited service" : "System offline";
-  }
-})();
-
-// 2. Trip search form and the map, kept in sync.
+// Trip search form and the map, kept in sync.
 (function tripSearch() {
   const form = document.getElementById("trip");
   if (!form) return;

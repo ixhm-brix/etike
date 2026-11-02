@@ -11,8 +11,6 @@
   --gray-700: #4b4b4b;
   --lake: #cfe1ea;
   --route: #000000;
-  --ok: #05a357;
-  --warn: #e3a008;
   --bad: #e11900;
 
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -136,23 +134,6 @@ a {
 .topbar :focus-visible {
   outline-color: var(--white);
 }
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-.status-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--gray-500);
-}
-.status[data-state="online"] .status-dot { background: var(--ok); }
-.status[data-state="degraded"] .status-dot { background: var(--warn); }
-.status[data-state="offline"] .status-dot { background: var(--bad); }
 
 /* ---------- Hero: search on the left, map on the right ---------- */
 
