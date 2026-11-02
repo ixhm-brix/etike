@@ -1,0 +1,28 @@
+name: Deploy to staging
+
+on:
+  push:
+    branches: [main]
+
+# Never run two deploys at once.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.STAGING_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Pull and restart on the server
+        # The repo must already be cloned at ~/etike on the server
+        # (see docs/architecture.md, "Preparing the VPS").
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}" \
+            "cd ~/etike && git pull && docker compose -f docker-compose.prod.yml up -d --build"

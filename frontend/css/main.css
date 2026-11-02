@@ -1,0 +1,653 @@
+/* ETIKE landing page. Mobile-first.
+   Black and white with greys, one typeface, the map carries the colour. */
+
+:root {
+  --black: #000000;
+  --white: #ffffff;
+  --gray-50: #f6f6f6;
+  --gray-100: #eeeeee;
+  --gray-200: #e2e2e2;
+  --gray-500: #757575;
+  --gray-700: #4b4b4b;
+  --lake: #cfe1ea;
+  --route: #000000;
+  --ok: #05a357;
+  --warn: #e3a008;
+  --bad: #e11900;
+
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 8px;
+  --radius-lg: 16px;
+  --max: 80rem;
+  --gutter: 1rem;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--white);
+  color: var(--black);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, ol, ul, figure {
+  margin: 0;
+}
+
+ul, ol {
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--black);
+  outline-offset: 2px;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 20;
+  background: var(--black);
+  color: var(--white);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+}
+.skip:focus {
+  top: 0.75rem;
+}
+
+.wrap {
+  width: 100%;
+  max-width: calc(var(--max) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  background: var(--black);
+  color: var(--white);
+}
+.topbar-inner {
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+.brand {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+}
+.topbar nav {
+  margin-right: auto;
+}
+.topbar-links {
+  display: none;
+  gap: 0.25rem;
+}
+.topbar-links a {
+  display: block;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 150ms ease-out;
+}
+.topbar-links a:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+.topbar :focus-visible {
+  outline-color: var(--white);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--gray-500);
+}
+.status[data-state="online"] .status-dot { background: var(--ok); }
+.status[data-state="degraded"] .status-dot { background: var(--warn); }
+.status[data-state="offline"] .status-dot { background: var(--bad); }
+
+/* ---------- Hero: search on the left, map on the right ---------- */
+
+.hero {
+  display: grid;
+  gap: 2rem;
+  padding-top: 2.5rem;
+  padding-bottom: 3rem;
+}
+
+.hero h1 {
+  font-size: clamp(2.5rem, 7vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+.hero-sub {
+  margin-top: 1rem;
+  max-width: 30rem;
+  font-size: 1.0625rem;
+  color: var(--gray-700);
+}
+
+.trip {
+  margin-top: 1.75rem;
+  max-width: 30rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* Mode chips */
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.mode span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem 0.55rem 0.8rem;
+  border-radius: 999px;
+  background: var(--gray-100);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.mode span:hover {
+  background: var(--gray-200);
+}
+.mode svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mode input:checked + span {
+  background: var(--black);
+  color: var(--white);
+}
+.mode input:focus-visible + span {
+  outline: 3px solid var(--black);
+  outline-offset: 2px;
+}
+
+/* From / to: one grey box, dot and square joined by a line */
+.stops {
+  position: relative;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+}
+.stops::before {
+  /* The line between the two markers */
+  content: "";
+  position: absolute;
+  left: calc(1.3rem - 1px);
+  top: 1.85rem;
+  bottom: 1.85rem;
+  width: 2px;
+  background: var(--black);
+}
+.stop {
+  position: relative;
+  display: block;
+}
+.stop::before {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  width: 0.6rem;
+  height: 0.6rem;
+  transform: translateY(-50%);
+  background: var(--black);
+  pointer-events: none;
+}
+.stop-from::before {
+  border-radius: 50%;
+}
+.stop + .stop {
+  border-top: 1px solid var(--gray-200);
+  margin-left: 2.6rem;
+}
+.stop + .stop::before {
+  left: -1.6rem;
+}
+.stop select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  padding: 0.9rem 1rem 0.9rem 2.6rem;
+  font: inherit;
+  font-weight: 500;
+  font-size: 1rem;
+  color: var(--black);
+  cursor: pointer;
+}
+.stop + .stop select {
+  padding-left: 0;
+}
+.stop select:focus-visible {
+  outline: none;
+  border-color: var(--black);
+  background: var(--white);
+}
+
+.extras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.field {
+  display: grid;
+  gap: 0.1rem;
+  background: var(--gray-100);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  padding: 0.45rem 0.85rem;
+}
+.field:focus-within {
+  border-color: var(--black);
+  background: var(--white);
+}
+.field span {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+.field input,
+.field select {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+  width: 100%;
+  color: var(--black);
+}
+
+.btn-black {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--black);
+  color: var(--white);
+  font: inherit;
+  font-weight: 600;
+  font-size: 1.0625rem;
+  padding: 0.95rem 1.5rem;
+  cursor: pointer;
+  transition: transform 120ms ease-out, background-color 150ms ease-out;
+}
+.btn-black:hover {
+  background: #333;
+}
+.btn-black:active {
+  transform: scale(0.98);
+}
+.trip-msg:empty {
+  display: none;
+}
+.trip-msg {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--gray-50);
+  border-left: 4px solid var(--black);
+  font-size: 0.9375rem;
+}
+.trip-msg[data-tone="error"] {
+  border-left-color: var(--bad);
+}
+
+/* ---------- Map ---------- */
+
+.map {
+  position: relative;
+  background: var(--gray-100);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  overflow: hidden;
+}
+.map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.map figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+}
+
+.map-land {
+  fill: var(--white);
+  stroke: #c9c9c9;
+  stroke-width: 1.5;
+}
+.map-lake {
+  fill: var(--lake);
+}
+.map-water {
+  fill: #6f8f9f;
+  font-family: var(--font);
+  font-size: 11px;
+  font-style: italic;
+  text-anchor: middle;
+}
+
+.map-routes path {
+  fill: none;
+  stroke: var(--route);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.55;
+  animation: draw 900ms var(--ease-out) forwards;
+  transition: opacity 200ms ease-out, stroke-width 200ms ease-out;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* When a destination is chosen, its route stands out and the rest step back. */
+.has-pick .map-routes path {
+  opacity: 0.15;
+}
+.has-pick .map-routes path.is-picked {
+  opacity: 1;
+  stroke-width: 4;
+}
+
+.map-pin {
+  cursor: pointer;
+  outline: none;
+}
+.map-hit {
+  fill: transparent;
+}
+.map-pin circle:not(.map-hit) {
+  fill: var(--white);
+  stroke: var(--black);
+  stroke-width: 2.5;
+  transition: fill 150ms ease-out;
+}
+.map-pin text,
+.map-hub text {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  fill: var(--black);
+  /* White halo keeps names readable over routes */
+  paint-order: stroke;
+  stroke: var(--white);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.map-pin:hover circle:not(.map-hit),
+.map-pin:focus-visible circle:not(.map-hit),
+.map-pin.is-picked circle:not(.map-hit) {
+  fill: var(--black);
+}
+.map-pin.is-picked text,
+.map-pin:focus-visible text {
+  font-weight: 700;
+}
+.map-hub rect {
+  fill: var(--black);
+}
+.map-hub text {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* The map scales down on phones, so its labels start larger there. */
+@media (max-width: 59.99rem) {
+  .map-pin text { font-size: 21px; }
+  .map-hub text { font-size: 24px; }
+  .map-water { font-size: 17px; }
+}
+
+/* ---------- Sections ---------- */
+
+.section {
+  padding-top: 3.5rem;
+  padding-bottom: 3.5rem;
+}
+.section h2,
+.drive h2 {
+  font-size: clamp(1.75rem, 4.5vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.ways {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.way {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  background: var(--gray-50);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+.way h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.way p {
+  margin-top: 0.4rem;
+  color: var(--gray-700);
+  font-size: 0.9375rem;
+}
+.way-art {
+  flex: none;
+  width: 5.5rem;
+  height: auto;
+  fill: none;
+  stroke: var(--black);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.steps {
+  counter-reset: step;
+  display: grid;
+  gap: 2rem;
+  margin-top: 1.75rem;
+}
+.steps li {
+  counter-increment: step;
+  border-top: 2px solid var(--black);
+  padding-top: 1rem;
+}
+.steps li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 1rem;
+  border-radius: 50%;
+  background: var(--black);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+.steps h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.steps p {
+  margin-top: 0.3rem;
+  color: var(--gray-700);
+}
+
+.drive {
+  background: var(--black);
+  color: var(--white);
+}
+.drive-inner {
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+.drive-cols {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+.drive h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.drive p {
+  margin-top: 0.4rem;
+  color: rgb(255 255 255 / 0.72);
+  max-width: 34ch;
+}
+
+.footer {
+  background: var(--black);
+  color: rgb(255 255 255 / 0.6);
+  font-size: 0.875rem;
+  border-top: 1px solid rgb(255 255 255 / 0.14);
+}
+.footer-inner {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 2rem;
+  padding-bottom: 2.5rem;
+}
+.footer .brand {
+  color: var(--white);
+  font-size: 1.25rem;
+}
+
+/* ---------- Larger screens ---------- */
+
+@media (min-width: 60rem) {
+  :root {
+    --gutter: 2.5rem;
+  }
+  .topbar-links {
+    display: flex;
+  }
+  .hero {
+    grid-template-columns: minmax(22rem, 30rem) 1fr;
+    gap: 4rem;
+    align-items: center;
+    padding-top: 4rem;
+    padding-bottom: 5rem;
+  }
+  .hero h1 {
+    font-size: 3.5rem;
+  }
+  .map {
+    padding: 1.5rem 1.5rem 1rem;
+  }
+  .ways {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .way {
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    padding: 1.75rem;
+  }
+  .way-art {
+    width: 6rem;
+    margin-bottom: 1.25rem;
+  }
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .drive-cols {
+    grid-template-columns: 1fr 1fr;
+  }
+  .footer-inner {
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 1.5rem;
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .map-routes path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .btn-black:active {
+    transform: none;
+  }
+}
