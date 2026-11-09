@@ -342,111 +342,209 @@ a {
 /* ---------- Map ---------- */
 
 .map {
-  position: relative;
+  display: grid;
+  gap: 0.75rem;
+}
+.map-canvas {
   background: var(--gray-100);
   border-radius: var(--radius-lg);
   padding: 1rem;
-  overflow: hidden;
 }
-.map svg {
+.rmap {
+  position: relative;
+}
+.rmap svg {
   display: block;
   width: 100%;
   height: auto;
+  overflow: visible;
 }
-.map figcaption {
-  margin-top: 0.5rem;
-  font-size: 0.8125rem;
+.rmap-unavailable {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--gray-700);
+}
+.trip-summary {
+  font-size: 0.9375rem;
+  color: var(--gray-700);
+}
+.map-credit {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
   color: var(--gray-500);
 }
 
-.map-land {
+/* Country border: a thick black stroke under the districts, so only its
+   outer half shows. */
+.rmap-outline path {
+  fill: none;
+  stroke: var(--black);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Districts: flat white shapes with fine grey borders */
+.rmap-districts path {
   fill: var(--white);
-  stroke: #c9c9c9;
-  stroke-width: 1.5;
+  stroke: #d4d4d4;
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  outline: none;
+  transition: fill 150ms ease-out;
 }
-.map-lake {
-  fill: var(--lake);
+.rmap-districts path:hover {
+  fill: var(--gray-50);
 }
-.map-water {
-  fill: #6f8f9f;
+.rmap-districts path:focus-visible {
+  fill: var(--gray-200);
+}
+.rmap-districts path.is-from,
+.rmap-districts path.is-to {
+  fill: var(--gray-200);
+}
+
+.rmap-labels text {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--gray-500);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.rmap-labels .rmap-city {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--black);
+}
+.rmap-water {
   font-family: var(--font);
   font-size: 11px;
   font-style: italic;
+  fill: var(--gray-500);
   text-anchor: middle;
+  pointer-events: none;
 }
 
-.map-routes path {
+/* Route: black line on a white casing, drawn from start to end */
+.rmap-route path {
   fill: none;
-  stroke: var(--route);
-  stroke-width: 1.6;
   stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.rmap-casing {
+  stroke: var(--white);
+  stroke-width: 8;
+}
+.rmap-line {
+  stroke: var(--black);
+  stroke-width: 4;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  opacity: 0.55;
-  animation: draw 900ms var(--ease-out) forwards;
-  transition: opacity 200ms ease-out, stroke-width 200ms ease-out;
+  animation: rmap-draw 700ms var(--ease-out) forwards;
 }
-@keyframes draw {
+.rmap-line.is-drawn {
+  stroke-dasharray: none;
+}
+.rmap-dashed {
+  stroke-width: 2.5;
+  stroke-dasharray: 6 8;
+  stroke-dashoffset: 0;
+  animation: none;
+}
+@keyframes rmap-draw {
   to {
     stroke-dashoffset: 0;
   }
 }
-/* When a destination is chosen, its route stands out and the rest step back. */
-.has-pick .map-routes path {
-  opacity: 0.15;
-}
-.has-pick .map-routes path.is-picked {
-  opacity: 1;
-  stroke-width: 4;
+.rmap-ends circle,
+.rmap-ends rect {
+  fill: var(--black);
+  stroke: var(--white);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
 }
 
-.map-pin {
+/* Name tags on the trip ends, positioned over the SVG */
+.rmap-tags {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.rmap-tag {
+  position: absolute;
+  transform: translate(12px, -50%);
+  background: var(--black);
+  color: var(--white);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* "Leave from here / Go here" */
+.rmap-pop {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, calc(-100% - 12px));
+  display: grid;
+  gap: 0.4rem;
+  min-width: 10rem;
+  padding: 0.75rem;
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.16);
+  animation: rmap-pop 150ms var(--ease-out);
+  transform-origin: bottom center;
+}
+.rmap-pop-below {
+  transform: translate(-50%, 12px);
+  transform-origin: top center;
+}
+@keyframes rmap-pop {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+.rmap-pop-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+.rmap-pop button {
+  border: 0;
+  border-radius: 6px;
+  background: var(--gray-100);
+  padding: 0.55rem 0.75rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-align: left;
   cursor: pointer;
-  outline: none;
+  transition: background-color 150ms ease-out;
 }
-.map-hit {
-  fill: transparent;
+.rmap-pop button:hover {
+  background: var(--gray-200);
 }
-.map-pin circle:not(.map-hit) {
-  fill: var(--white);
-  stroke: var(--black);
-  stroke-width: 2.5;
-  transition: fill 150ms ease-out;
-}
-.map-pin text,
-.map-hub text {
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 500;
-  fill: var(--black);
-  /* White halo keeps names readable over routes */
-  paint-order: stroke;
-  stroke: var(--white);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
-.map-pin:hover circle:not(.map-hit),
-.map-pin:focus-visible circle:not(.map-hit),
-.map-pin.is-picked circle:not(.map-hit) {
-  fill: var(--black);
-}
-.map-pin.is-picked text,
-.map-pin:focus-visible text {
-  font-weight: 700;
-}
-.map-hub rect {
-  fill: var(--black);
-}
-.map-hub text {
-  font-size: 16px;
-  font-weight: 700;
+.rmap-pop button[data-role="to"] {
+  background: var(--black);
+  color: var(--white);
 }
 
 /* The map scales down on phones, so its labels start larger there. */
-@media (max-width: 59.99rem) {
-  .map-pin text { font-size: 21px; }
-  .map-hub text { font-size: 24px; }
-  .map-water { font-size: 17px; }
+@media (max-width: 40rem) {
+  .rmap-labels text,
+  .rmap-water {
+    font-size: 15px;
+  }
+  .rmap-labels .rmap-city {
+    font-size: 18px;
+  }
 }
 
 /* ---------- Sections ---------- */
@@ -590,8 +688,8 @@ a {
   .hero h1 {
     font-size: 3.5rem;
   }
-  .map {
-    padding: 1.5rem 1.5rem 1rem;
+  .map-canvas {
+    padding: 1.5rem;
   }
   .ways {
     grid-template-columns: repeat(3, 1fr);
@@ -624,11 +722,14 @@ a {
   html {
     scroll-behavior: auto;
   }
-  .map-routes path {
-    animation: none;
-    stroke-dashoffset: 0;
-  }
   .btn-black:active {
     transform: none;
+  }
+  .rmap-line:not(.rmap-dashed) {
+    animation: none;
+    stroke-dasharray: none;
+  }
+  .rmap-pop {
+    animation: none;
   }
 }

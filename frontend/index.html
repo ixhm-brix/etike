@@ -80,8 +80,12 @@
         </form>
       </div>
 
-      <figure class="map" id="map">
-        <figcaption>Tap a town to plan a trip there. Map simplified; routes are not exact roads.</figcaption>
+      <figure class="map">
+        <div class="map-canvas" id="map-canvas"></div>
+        <figcaption>
+          <p class="trip-summary" id="trip-summary" aria-live="polite">Choose where you are going, or tap any district on the map.</p>
+          <p class="map-credit">District boundaries: geoBoundaries, CC BY 4.0. Road routes: OpenStreetMap contributors.</p>
+        </figcaption>
       </figure>
     </section>
 
