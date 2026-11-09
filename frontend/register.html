@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create an account – ETIKE</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/">ETIKE</a>
+      <nav aria-label="Main">
+        <ul class="topbar-links">
+          <li><a href="/search.html">Find a trip</a></li>
+        </ul>
+      </nav>
+      <div class="account" id="account"></div>
+    </div>
+  </header>
+
+  <main id="main" class="page wrap page-narrow">
+    <h1>Create an account</h1>
+    <p class="page-sub">Already have one? <a href="/login.html">Log in</a></p>
+
+    <form class="form" id="register" novalidate>
+          <div class="modes" role="radiogroup" aria-label="Account type">
+            <label class="mode">
+              <input type="radio" name="role" value="passenger" checked>
+              <span>I'm travelling</span>
+            </label>
+            <label class="mode">
+              <input type="radio" name="role" value="driver">
+              <span>I'm a driver</span>
+            </label>
+          </div>
+      <label class="field">
+        <span>Full name</span>
+        <input type="text" name="full_name" autocomplete="name" required>
+      </label>
+      <label class="field">
+        <span>Phone number</span>
+        <input type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="078 123 4567" required>
+      </label>
+      <p class="field-hint">You log in with this number.</p>
+      <label class="field">
+        <span>Email (optional)</span>
+        <input type="email" name="email" autocomplete="email">
+      </label>
+      <label class="field" id="licence-field" hidden>
+        <span>Driving licence number</span>
+        <input type="text" name="license_number" autocomplete="off">
+      </label>
+      <p class="field-hint" id="licence-hint" hidden>We check your licence before you can post rides.</p>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" name="password" autocomplete="new-password" minlength="8" required>
+      </label>
+      <p class="field-hint">At least 8 characters.</p>
+      <button class="btn-black" type="submit">Create account</button>
+      <p class="trip-msg" id="msg" role="alert"></p>
+    </form>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <p class="brand">ETIKE</p>
+      <p>Intercity Travel Platform. Team 3, BSc Software Engineering, African Leadership University, Kigali.</p>
+    </div>
+  </footer>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/register.js"></script>
+</body>
+</html>

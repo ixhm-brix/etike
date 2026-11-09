@@ -23,9 +23,12 @@ services:
     environment:
       FLASK_ENV: development
       SECRET_KEY: ${SECRET_KEY:-dev-only-secret}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-not-for-production}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-etike}:${POSTGRES_PASSWORD:-etike_dev_password}@db:5432/${POSTGRES_DB:-etike}
     volumes:
       - ./backend:/app
+      # So data/scripts can be run inside the container (see data/README.md).
+      - ./data:/data
     depends_on:
       db:
         condition: service_healthy

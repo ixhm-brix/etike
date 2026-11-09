@@ -84,8 +84,16 @@ const MODE_CTA = {
     if (!from.value) { msg.textContent = "Choose where you are leaving from."; from.focus(); return; }
     if (!to.value) { msg.textContent = "Choose where you are going."; to.focus(); return; }
     if (from.value === to.value) { msg.textContent = "Pick two different districts."; return; }
-    msg.dataset.tone = "info";
-    msg.textContent = `Booking from ${from.value} to ${to.value} opens once we have collected real timetables and prices.`;
+    // The landing form's "car" is a private car in the API.
+    const type = { bus: "bus", car: "private", shared: "shared" }[form.elements.mode.value];
+    const query = new URLSearchParams({
+      origin: from.value,
+      destination: to.value,
+      date: date.value,
+      type,
+      seats: form.elements.seats.value,
+    });
+    location.href = `/results.html?${query}`;
   });
 })();
 

@@ -716,6 +716,263 @@ a {
   }
 }
 
+/* ---------- Account area in the top bar ---------- */
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+.account a,
+.account button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+.account a:hover,
+.account button:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+.account .account-cta {
+  background: var(--white);
+  color: var(--black);
+}
+.account .account-cta:hover {
+  background: var(--gray-200);
+}
+.account-name {
+  display: none;
+  color: var(--gray-200);
+  padding-inline: 0.5rem;
+}
+
+/* ---------- App pages: sign-in, search, results, booking, driver ---------- */
+
+.page {
+  /* Keeps the footer near the bottom on short pages */
+  min-height: calc(100vh - 12rem);
+  padding-top: 2.5rem;
+  padding-bottom: 4rem;
+}
+.page-narrow {
+  max-width: calc(30rem + 2 * var(--gutter));
+}
+.page h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+.page h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.page-sub {
+  margin-top: 0.5rem;
+  color: var(--gray-700);
+}
+.page-sub a,
+.form-foot a {
+  font-weight: 600;
+}
+
+.form {
+  margin-top: 1.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.form .btn-black {
+  margin-top: 0.25rem;
+}
+.form-foot {
+  font-size: 0.9375rem;
+  color: var(--gray-700);
+}
+.field-hint {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  margin-top: -0.4rem;
+  padding-inline: 0.25rem;
+}
+.field.is-invalid {
+  border-color: var(--bad);
+}
+.field-error {
+  font-size: 0.8125rem;
+  color: var(--bad);
+}
+
+.block {
+  margin-top: 2.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+/* Results and bookings */
+.result-tabs {
+  margin-top: 1.5rem;
+}
+.result-tabs a {
+  text-decoration: none;
+}
+.result-tabs a[aria-current] span {
+  background: var(--black);
+  color: var(--white);
+}
+.results {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.result {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 1rem;
+  align-items: center;
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--gray-50);
+}
+.result-time {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.result-price {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.result-meta {
+  color: var(--gray-700);
+  font-size: 0.9375rem;
+}
+.result-note {
+  text-align: right;
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+}
+.result-actions {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  font-size: 0.9375rem;
+  padding: 0.6rem 1.1rem;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-gray {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--gray-200);
+  color: var(--black);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+.btn-gray:hover {
+  background: #d4d4d4;
+}
+.btn-black:disabled,
+.btn-gray:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.status {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: var(--black);
+  color: var(--white);
+}
+.status-cancelled {
+  background: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.empty {
+  margin-top: 1.5rem;
+  padding: 2.5rem 1.5rem;
+  border-radius: var(--radius-lg);
+  background: var(--gray-50);
+  text-align: center;
+  color: var(--gray-700);
+}
+.empty strong {
+  display: block;
+  color: var(--black);
+  font-size: 1.0625rem;
+  margin-bottom: 0.25rem;
+}
+.empty a {
+  font-weight: 600;
+}
+
+/* Booking summary */
+.summary {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--gray-50);
+  display: grid;
+  gap: 0.6rem;
+}
+.summary div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.summary dt {
+  color: var(--gray-700);
+}
+.summary dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+.summary .summary-total {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 0.75rem;
+  font-size: 1.125rem;
+}
+
+.loading {
+  margin-top: 1.5rem;
+  color: var(--gray-500);
+}
+
+@media (min-width: 60rem) {
+  .account-name {
+    display: inline;
+  }
+  .page {
+    padding-top: 3.5rem;
+  }
+  .page h1 {
+    font-size: 2.5rem;
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {

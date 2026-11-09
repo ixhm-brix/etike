@@ -24,6 +24,7 @@ services:
     environment:
       FLASK_ENV: production
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
     depends_on:

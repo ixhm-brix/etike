@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My bookings – ETIKE</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/">ETIKE</a>
+      <nav aria-label="Main">
+        <ul class="topbar-links">
+          <li><a href="/search.html">Find a trip</a></li>
+        </ul>
+      </nav>
+      <div class="account" id="account"></div>
+    </div>
+  </header>
+
+  <main id="main" class="page wrap">
+    <h1>My bookings</h1>
+    <p class="page-sub"><a href="/search.html">Find another trip</a></p>
+
+    <p class="loading" id="loading">Loading…</p>
+    <p class="trip-msg" id="msg" role="alert"></p>
+    <ol class="results" id="results"></ol>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <p class="brand">ETIKE</p>
+      <p>Intercity Travel Platform. Team 3, BSc Software Engineering, African Leadership University, Kigali.</p>
+    </div>
+  </footer>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/bookings.js"></script>
+</body>
+</html>

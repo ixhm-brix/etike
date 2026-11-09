@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Post a ride – ETIKE</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/">ETIKE</a>
+      <nav aria-label="Main">
+        <ul class="topbar-links">
+          <li><a href="/search.html">Find a trip</a></li>
+        </ul>
+      </nav>
+      <div class="account" id="account"></div>
+    </div>
+  </header>
+
+  <main id="main" class="page wrap page-narrow">
+    <h1>Post a ride</h1>
+    <p class="page-sub" id="status"></p>
+
+    <section class="block" aria-labelledby="vehicles-title">
+      <h2 id="vehicles-title">Your vehicles</h2>
+      <ul class="results" id="vehicles"></ul>
+      <form class="form" id="vehicle" novalidate>
+        <label class="field">
+          <span>Plate number</span>
+          <input type="text" name="plate_number" autocomplete="off" placeholder="RAB 123 A" required>
+        </label>
+        <label class="field">
+          <span>Make and model</span>
+          <input type="text" name="model" autocomplete="off" placeholder="Toyota Corolla" required>
+        </label>
+        <label class="field">
+          <span>Passenger seats (not counting you)</span>
+          <input type="number" name="seats" min="1" max="30" inputmode="numeric" required>
+        </label>
+        <button class="btn-gray btn-sm" type="submit">Add vehicle</button>
+        <p class="trip-msg" id="vehicle-msg" role="alert"></p>
+      </form>
+    </section>
+
+    <section class="block" aria-labelledby="ride-title">
+      <h2 id="ride-title">New ride</h2>
+      <form class="form" id="ride" novalidate>
+          <div class="modes" role="radiogroup" aria-label="Type of ride">
+            <label class="mode">
+              <input type="radio" name="ride_type" value="shared" checked>
+              <span>Shared seats</span>
+            </label>
+            <label class="mode">
+              <input type="radio" name="ride_type" value="private">
+              <span>Private, whole car</span>
+            </label>
+          </div>
+        <label class="field">
+          <span>Vehicle</span>
+          <select name="vehicle_id" required></select>
+        </label>
+        <div class="stops">
+          <label class="stop stop-from">
+            <span class="sr">Leaving from</span>
+            <select name="origin" required></select>
+          </label>
+          <label class="stop stop-to">
+            <span class="sr">Going to</span>
+            <select name="destination" required></select>
+          </label>
+        </div>
+        <label class="field">
+          <span>Departure</span>
+          <input type="datetime-local" name="departure_time" required>
+        </label>
+        <label class="field">
+          <span id="price-label">Price per seat (RWF)</span>
+          <input type="number" name="price" min="1" step="1" inputmode="numeric" required>
+        </label>
+        <label class="field" id="seats-field">
+          <span>Seats you are offering</span>
+          <input type="number" name="seats_available" min="1" inputmode="numeric">
+        </label>
+        <button class="btn-black" type="submit">Post ride</button>
+        <p class="trip-msg" id="ride-msg" role="alert"></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <p class="brand">ETIKE</p>
+      <p>Intercity Travel Platform. Team 3, BSc Software Engineering, African Leadership University, Kigali.</p>
+    </div>
+  </footer>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/offer.js"></script>
+</body>
+</html>

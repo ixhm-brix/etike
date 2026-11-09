@@ -42,7 +42,13 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Lint with ruff
-        run: ruff check .
+        run: ruff check . ../data/scripts
+
+      - name: Run migrations
+        # FLASK_ENV=testing makes the app use TEST_DATABASE_URL.
+        env:
+          FLASK_ENV: testing
+        run: flask --app wsgi db upgrade
 
       - name: Run tests
         run: pytest
