@@ -1,8 +1,8 @@
 // District map of Rwanda for the landing page, drawn as plain SVG so it
 // matches the rest of the design (no map tiles, no map library).
 // District shapes: geoBoundaries, CC BY 4.0 (assets/rwanda-districts.geojson).
-// Road routes: the public OSRM demo server, OpenStreetMap data. Fine for a
-// student project; use a self-hosted OSRM or a paid API before real launch.
+// Road routes: the public OSRM demo server, OpenStreetMap data. It has usage
+// limits, so switch to a self-hosted OSRM or a paid routing API at launch.
 
 const RwandaMap = (() => {
   // Main town of each district as [latitude, longitude]. Routes start and

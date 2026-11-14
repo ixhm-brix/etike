@@ -12,6 +12,7 @@
     licence.hidden = !isDriver;
     licenceHint.hidden = !isDriver;
   }
+  if (new URLSearchParams(location.search).get("role") === "driver") form.elements.role.value = "driver";
   form.addEventListener("change", sync);
   sync();
 
