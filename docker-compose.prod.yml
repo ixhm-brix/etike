@@ -20,13 +20,30 @@ services:
   api:
     build: ./backend
     restart: unless-stopped
-    # Uses the Dockerfile's default command: Gunicorn.
+    # Uses the Dockerfile's default command: Gunicorn, FLASK_ENV=production,
+    # so debug mode is always off.
     environment:
       FLASK_ENV: production
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      BOOKING_HOLD_MINUTES: ${BOOKING_HOLD_MINUTES:-15}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Payments and SMS: optional. Without them the API says payments are
+      # unavailable (503) and skips SMS.
+      FLW_SECRET_KEY: ${FLW_SECRET_KEY:-}
+      FLW_SECRET_HASH: ${FLW_SECRET_HASH:-}
+      FLW_REDIRECT_URL: ${FLW_REDIRECT_URL:-}
+      AT_USERNAME: ${AT_USERNAME:-}
+      AT_API_KEY: ${AT_API_KEY:-}
+      AT_SENDER_ID: ${AT_SENDER_ID:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
@@ -44,8 +61,14 @@ services:
       - ./frontend:/usr/share/nginx/html:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   db_data:

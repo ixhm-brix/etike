@@ -23,6 +23,16 @@ class BusCompany(db.Model):
     def to_dict(self):
         return {"company_id": self.company_id, "name": self.name}
 
+    def admin_dict(self):
+        return {
+            "company_id": self.company_id,
+            "name": self.name,
+            "contact_phone": self.contact_phone,
+            "registration_number": self.registration_number,
+            "licence_number": self.licence_number,
+            "is_verified": self.is_verified,
+        }
+
 
 class Route(db.Model):
     __tablename__ = "routes"
@@ -108,6 +118,8 @@ class RideOffer(db.Model):
             "price": self.price,
             "seats_available": self.seats_available,
             "status": self.status,
+            "driver_id": self.driver_id,
             "driver_name": self.driver.user.full_name,
+            "driver_rating": float(self.driver.avg_rating) if self.driver.avg_rating else None,
             "vehicle": {"model": self.vehicle.model, "seats": self.vehicle.seats},
         }

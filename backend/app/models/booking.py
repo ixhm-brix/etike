@@ -14,6 +14,8 @@ class Booking(db.Model):
         db.CheckConstraint("(trip_id IS NULL) <> (offer_id IS NULL)", name="one_target"),
         db.CheckConstraint("seats_booked >= 1", name="seats_booked_positive"),
         db.CheckConstraint("total_price >= 0", name="total_price_not_negative"),
+        # Finds unpaid bookings whose hold has run out.
+        db.Index("ix_bookings_status_expires", "status", "expires_at"),
     )
 
     booking_id = db.Column(db.Integer, primary_key=True)
@@ -25,9 +27,14 @@ class Booking(db.Model):
     total_price = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(10), nullable=False, default="pending")
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # While a booking is pending, its seats are held until this time.
+    expires_at = db.Column(db.DateTime(timezone=True))
 
+    user = db.relationship("User")
     trip = db.relationship("BusTrip")
     offer = db.relationship("RideOffer")
+    payment = db.relationship("Payment", back_populates="booking", uselist=False)
+    rating = db.relationship("Rating", back_populates="booking", uselist=False)
 
     def to_dict(self):
         target = self.trip or self.offer
@@ -44,4 +51,8 @@ class Booking(db.Model):
             "total_price": self.total_price,
             "status": self.status,
             "created_at": self.created_at.isoformat(),
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "payment_status": self.payment.status if self.payment else None,
+            "driver_id": self.offer.driver_id if self.offer else None,
+            "rating": self.rating.to_dict() if self.rating else None,
         }

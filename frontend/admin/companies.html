@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bus companies – ETIKE</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/">ETIKE</a>
+      <nav aria-label="Main">
+        <ul class="topbar-links">
+          <li><a href="/search.html">Find a trip</a></li>
+        </ul>
+      </nav>
+      <div class="account" id="account"></div>
+    </div>
+  </header>
+
+  <main id="main" class="page wrap">
+    <h1>Bus companies</h1>
+    <p class="page-sub">Only verified companies' trips appear in search. Verify a company after checking its registration and RURA licence.</p>
+
+    <p class="loading" id="loading">Loading…</p>
+    <p class="trip-msg" id="msg" role="alert"></p>
+    <ol class="results" id="results"></ol>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a class="brand" href="/">ETIKE</a>
+          <p>Buses, private cars and shared seats between Rwanda's districts.</p>
+        </div>
+        <nav class="footer-cols" aria-label="Footer">
+          <div>
+            <h2>Travel</h2>
+            <ul>
+              <li><a href="/search.html?type=bus">Bus tickets</a></li>
+              <li><a href="/search.html?type=private">Private car</a></li>
+              <li><a href="/search.html?type=shared">Shared seat</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2>Drive</h2>
+            <ul>
+              <li><a href="/register.html?role=driver">Become a driver</a></li>
+              <li><a href="/driver/offer.html">Post a ride</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2>Account</h2>
+            <ul>
+              <li><a href="/login.html">Log in</a></li>
+              <li><a href="/register.html">Sign up</a></li>
+              <li><a href="/bookings.html">My bookings</a></li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 ETIKE</p>
+        <p>Kigali, Rwanda</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/admin-companies.js"></script>
+</body>
+</html>

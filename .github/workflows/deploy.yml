@@ -12,17 +12,40 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      STAGING_USER: ${{ secrets.STAGING_USER }}
+      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
     steps:
+      # Until the server exists and its secrets are added in GitHub
+      # (Settings > Secrets and variables > Actions), skip instead of failing.
+      - name: Check deploy secrets
+        id: secrets
+        run: |
+          if [ -z "$STAGING_HOST" ] || [ -z "$STAGING_USER" ] || [ -z "$STAGING_SSH_KEY" ]; then
+            echo "Deploy secrets are not set; skipping the deploy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Prepare SSH
+        if: steps.secrets.outputs.ready == 'true'
         run: |
           install -m 700 -d ~/.ssh
-          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_deploy
+          echo "$STAGING_SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "${{ secrets.STAGING_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$STAGING_HOST" >> ~/.ssh/known_hosts
 
-      - name: Pull and restart on the server
+      - name: Pull, rebuild and migrate on the server
+        if: steps.secrets.outputs.ready == 'true'
         # The repo must already be cloned at ~/etike on the server
-        # (see docs/architecture.md, "Preparing the VPS").
+        # (see docs/deployment.md).
         run: |
-          ssh -i ~/.ssh/id_deploy "${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}" \
-            "cd ~/etike && git pull && docker compose -f docker-compose.prod.yml up -d --build"
+          ssh -i ~/.ssh/id_deploy "$STAGING_USER@$STAGING_HOST" '
+            set -e
+            cd ~/etike
+            git pull --ff-only
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.prod.yml exec -T api flask --app wsgi db upgrade
+          '

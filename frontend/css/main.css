@@ -907,6 +907,7 @@ a {
   grid-column: 1 / -1;
   margin-top: 0.5rem;
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
@@ -1000,6 +1001,89 @@ a {
 .loading {
   margin-top: 1.5rem;
   color: var(--gray-500);
+}
+
+/* Booking statuses */
+.status-pending {
+  background: var(--gray-200);
+  color: var(--black);
+}
+.status-approved,
+.status-confirmed {
+  background: var(--black);
+  color: var(--white);
+}
+.status-rejected {
+  background: var(--white);
+  color: var(--bad);
+  box-shadow: inset 0 0 0 1px var(--bad);
+}
+.result-wide {
+  grid-column: 1 / -1;
+}
+
+/* Payment */
+.countdown {
+  margin-top: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.countdown.is-urgent {
+  color: var(--bad);
+}
+.waiting {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--gray-50);
+  border-left: 4px solid var(--black);
+}
+#result .form-foot a {
+  margin-right: 1rem;
+}
+
+/* Ticket and rating on My bookings */
+.ticket {
+  grid-column: 1 / -1;
+  margin: 0.75rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  background: var(--white);
+  border: 1px dashed var(--gray-200);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 1rem;
+}
+.ticket dt {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+}
+.ticket dd {
+  margin: 0;
+  font-weight: 600;
+}
+.rate-form {
+  grid-column: 1 / -1;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--gray-200);
+}
+.rate-title {
+  font-weight: 600;
+}
+.rate-form .mode span {
+  min-width: 2.75rem;
+  justify-content: center;
+}
+.rate-form .btn-black {
+  justify-self: start;
+}
+.rated {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
 }
 
 @media (min-width: 60rem) {

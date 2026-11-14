@@ -26,7 +26,9 @@ def test_booking_reduces_seats(app, client, make_trip, passenger):
 
     assert response.status_code == 201
     booking = response.get_json()["booking"]
-    assert booking["status"] == "confirmed"
+    # Seats are held while the passenger pays.
+    assert booking["status"] == "pending"
+    assert booking["expires_at"]
     assert booking["total_price"] == 7000
     assert seats_left(app, BusTrip, trip_id) == 3
 

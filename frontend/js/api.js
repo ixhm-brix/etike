@@ -51,7 +51,10 @@ const api = (() => {
     if (!response.ok) {
       // An expired or broken token: forget it so the user can log in again.
       if (response.status === 401 && token) auth.forget();
-      const message = data?.error?.message || `Something went wrong (error ${response.status}).`;
+      // Nginx limits login and sign-up attempts; its 429 page isn't JSON.
+      const message = data?.error?.message
+        || (response.status === 429 ? "Too many attempts. Wait a minute and try again." : null)
+        || `Something went wrong (error ${response.status}).`;
       throw new ApiError(message, response.status, data);
     }
     return data;

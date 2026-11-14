@@ -92,7 +92,7 @@
     return card({
       time: ui.when(r.departure_time),
       price: ui.money(r.price),
-      meta: `${r.driver_name} · ${r.vehicle.model}`,
+      meta: `${r.driver_name}${r.driver_rating ? ` (${r.driver_rating}/5)` : ""} · ${r.vehicle.model}`,
       note: isPrivate ? `whole car · ${r.seats_available} seats` : `per seat · ${r.seats_available} left`,
       href: `/booking.html?offer=${r.offer_id}&seats=${seats}`,
     });

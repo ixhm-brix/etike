@@ -13,6 +13,7 @@ from datetime import timedelta
 import pytest
 from flask_migrate import upgrade
 from sqlalchemy import text
+from werkzeug.security import generate_password_hash
 
 from app import create_app
 from app.extensions import db
@@ -84,11 +85,13 @@ def passenger(client):
 
 @pytest.fixture()
 def make_trip(app):
-    """make_trip(seats=2, price=5000, hours_ahead=24) -> trip_id"""
+    """make_trip(seats=2, price=5000, hours_ahead=24, verified=True) -> trip_id"""
 
-    def make(seats=2, price=5000, hours_ahead=24, origin="Kigali", destination="Huye"):
+    def make(seats=2, price=5000, hours_ahead=24, origin="Kigali", destination="Huye",
+             verified=True):
         with app.app_context():
-            company = BusCompany(name="Test Bus Co", registration_number=f"TEST-{new_phone()}")
+            company = BusCompany(name="Test Bus Co", registration_number=f"TEST-{new_phone()}",
+                                 is_verified=verified)
             trip = BusTrip(
                 company=company,
                 route=_route(origin, destination),
@@ -132,6 +135,63 @@ def make_offer(app):
             db.session.add_all([user, offer])
             db.session.commit()
             return offer.offer_id
+
+    return make
+
+
+class FakeFlutterwave:
+    """Stands in for Flutterwave in tests.
+
+    Set .transaction to what verify_by_reference should return: None while
+    the customer hasn't paid, or a dict like Flutterwave's `data`.
+    """
+
+    def __init__(self):
+        self.charges = []
+        self.transaction = None
+        self.fail_charges = False
+
+    def charge_rwanda_mobile_money(self, tx_ref, amount, phone, email, fullname,
+                                   redirect_url=None):
+        from app.services.flutterwave_client import FlutterwaveError
+
+        if self.fail_charges:
+            raise FlutterwaveError("Flutterwave could not be reached")
+        self.charges.append({"tx_ref": tx_ref, "amount": amount, "phone": phone,
+                             "email": email})
+        return f"https://checkout.example.test/{tx_ref}"
+
+    def verify_by_reference(self, tx_ref):
+        return self.transaction
+
+    def pays(self, status="successful", **changes):
+        """Make the last charge come back with this status."""
+        charge = self.charges[-1]
+        self.transaction = {"tx_ref": charge["tx_ref"], "amount": charge["amount"],
+                            "currency": "RWF", "status": status, **changes}
+
+
+@pytest.fixture()
+def flutterwave(monkeypatch):
+    from app.services import payment_service
+
+    fake = FakeFlutterwave()
+    monkeypatch.setattr(payment_service, "get_payment_client", lambda: fake)
+    return fake
+
+
+@pytest.fixture()
+def make_admin(app, client):
+    """make_admin() -> auth headers for a new admin account."""
+
+    def make():
+        phone = new_phone()
+        with app.app_context():
+            db.session.add(User(full_name="Test Admin", phone=f"+250{phone[1:]}",
+                                password_hash=generate_password_hash(PASSWORD), role="admin"))
+            db.session.commit()
+        login = client.post("/api/auth/login", json={"phone": phone, "password": PASSWORD})
+        return auth_header(login)
 
     return make
 

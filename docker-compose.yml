@@ -24,6 +24,15 @@ services:
       FLASK_ENV: development
       SECRET_KEY: ${SECRET_KEY:-dev-only-secret}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-not-for-production}
+      BOOKING_HOLD_MINUTES: ${BOOKING_HOLD_MINUTES:-15}
+      # Flutterwave test keys and Africa's Talking sandbox keys, if you have
+      # them in .env. Without them payments return 503 and SMS is skipped.
+      FLW_SECRET_KEY: ${FLW_SECRET_KEY:-}
+      FLW_SECRET_HASH: ${FLW_SECRET_HASH:-}
+      FLW_REDIRECT_URL: ${FLW_REDIRECT_URL:-http://localhost/payment.html}
+      AT_USERNAME: ${AT_USERNAME:-}
+      AT_API_KEY: ${AT_API_KEY:-}
+      AT_SENDER_ID: ${AT_SENDER_ID:-}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-etike}:${POSTGRES_PASSWORD:-etike_dev_password}@db:5432/${POSTGRES_DB:-etike}
     volumes:
       - ./backend:/app

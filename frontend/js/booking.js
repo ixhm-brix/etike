@@ -61,14 +61,8 @@
     if (!isPrivate) body.seats = Number(seatsSelect.value);
     try {
       const { booking: b } = await ui.busy(button, "Booking…", () => api.post("/bookings", body));
-      form.hidden = true;
-      document.getElementById("title").textContent = "You're booked";
-      fill(document.getElementById("receipt"), [
-        ["Booking number", `#${b.booking_id}`],
-        ["Seats", String(b.seats_booked)],
-        ["Total", ui.money(b.total_price)],
-      ]);
-      document.getElementById("done").hidden = false;
+      // Seats are held now; pay to confirm them.
+      location.href = `/payment.html?booking=${b.booking_id}`;
     } catch (err) {
       if (err.status === 401) return auth.require("passenger");
       ui.formError(form, msg, err);

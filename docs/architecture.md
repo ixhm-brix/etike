@@ -17,24 +17,30 @@ flowchart LR
         Nginx[Nginx<br/>static files + proxy] -->|/api/*| Flask[Flask + Gunicorn]
         Flask --> DB[(PostgreSQL 16)]
     end
-    Flask -.planned.-> MoMo[MoMo sandbox<br/>payments]
-    Flask -.planned.-> SMS[SMS gateway<br/>notifications]
+    Flask --> FLW[Flutterwave<br/>mobile money]
+    Flask --> SMS[Africa's Talking<br/>SMS]
+    Browser -->|routes on the map| OSRM[OSRM router<br/>OpenStreetMap]
+    Browser -->|approve payment| FLW
 ```
 
-Solid lines exist now. Dotted lines are planned for later sprints.
+Flutterwave and Africa's Talking are optional: without their keys, payments answer 503 and SMS is skipped.
 
 ## Backend modules
 
 | Module | Where | What it does |
 |--------|-------|--------------|
-| Models | `app/models/` | `users`, `drivers`, `vehicles`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, with CHECK constraints for allowed values and seat counts |
+| Models | `app/models/` | `users`, `drivers`, `vehicles`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, `payments`, `ratings`, with CHECK constraints for allowed values, seat counts and scores |
 | Auth | `app/auth/` | Register, log in, `/me`. JWT tokens (Flask-JWT-Extended), Werkzeug password hashes, and the `role_required` decorator |
 | Search | `app/routes/search.py` | Places, routes, bus trips and ride offers. Public |
 | Drivers | `app/routes/drivers.py` | Vehicles, and posting rides (approved drivers only) |
-| Bookings | `app/routes/bookings.py`, `app/services/booking_service.py` | Book and cancel without double booking |
+| Bookings | `app/routes/bookings.py`, `app/services/booking_service.py` | Book (pending, seats held), confirm, cancel and release expired holds, without double booking |
+| Payments | `app/routes/payments.py`, `app/services/payment_service.py`, `app/services/flutterwave_client.py` | Rwanda mobile money through Flutterwave: start, verify, webhook |
+| SMS | `app/services/sms_service.py` | Booking confirmations through Africa's Talking; failures are logged, never raised |
+| Ratings | `app/routes/ratings.py` | Passengers rate drivers after a ride; keeps `drivers.avg_rating` up to date |
+| Admin | `app/routes/admin.py` | Approve or reject drivers, verify bus companies (admin role only) |
 | Validation and errors | `app/validation.py`, `app/errors.py` | Input checks and one JSON error format |
 | Places | `app/places.py` | The 28 places people travel between (Kigali's three districts count as one) and old town names such as Butare for Huye |
-| Admin command | `app/cli.py` | `flask approve-driver` until there is an admin dashboard |
+| Commands | `app/cli.py` | `flask create-admin`, `flask approve-driver`, `flask expire-bookings` |
 
 Data gets in through `data/scripts/clean_data.py` and `load_data.py`, from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded.
 
@@ -73,6 +79,56 @@ Rules the service applies:
 - An offer whose seats reach 0 becomes `full`. Cancelling a booking returns its seats and reopens a `full` offer.
 - Bookings are `confirmed` straight away until payments arrive in a later sprint.
 
+## Paying for a booking
+
+A new booking is `pending` and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default). The passenger pays with Rwanda mobile money through Flutterwave:
+
+```mermaid
+sequenceDiagram
+    actor P as Passenger
+    participant W as ETIKE website
+    participant A as Flask API
+    participant DB as PostgreSQL
+    participant F as Flutterwave
+    participant S as Africa's Talking
+
+    P->>W: Book seats
+    W->>A: POST /api/bookings
+    A->>DB: lock trip/offer, hold seats, booking = pending (expires in 15 min)
+    A-->>W: booking
+    P->>W: Pay with MoMo (phone number)
+    W->>A: POST /api/payments {booking_id}
+    A->>DB: payment = pending, tx_ref = etike-<booking>-<random>
+    A->>F: POST /v3/charges?type=mobile_money_rwanda (amount from the booking)
+    F-->>A: redirect URL
+    A-->>W: checkout_url
+    W->>F: open Flutterwave page in a new tab
+    P->>F: approve (test OTP 123456)
+    par Website keeps checking
+        W->>A: GET /api/payments/<booking>/status (every few seconds)
+    and Flutterwave webhook (server only)
+        F->>A: POST /api/payments/webhook (verif-hash header)
+    end
+    A->>F: GET /v3/transactions/verify_by_reference?tx_ref=...
+    F-->>A: status, tx_ref, amount, currency
+    alt successful and tx_ref, amount and currency match
+        A->>DB: lock payment and booking: payment = success, booking = confirmed
+        A->>S: SMS to passenger (and to the driver for a ride)
+        A-->>W: confirmed
+    else failed or details don't match
+        A->>DB: payment = failed, booking = cancelled, seats returned
+        A-->>W: cancelled
+    end
+```
+
+Rules the payment service applies:
+
+- The amount always comes from the booking. Anything the client sends as an amount is ignored.
+- A webhook is only a hint. Its secret hash must match `FLW_SECRET_HASH`, and even then the API asks Flutterwave for the transaction before changing anything.
+- Settling is done once, under a row lock: a second webhook or status check for the same payment changes nothing.
+- An SMS is sent after the database commit, and its failure is only logged, so SMS can never undo a booking.
+- If the 15 minutes run out, the booking is cancelled and its seats return (before every search and booking, and by `flask expire-bookings` from cron). If the payment still succeeds afterwards, the seats are taken again if they are free; if not, the booking stays cancelled and an error is logged so the payment can be refunded by hand. Automatic refunds are not built yet.
+
 ## Environments
 
 - **Local**: `docker-compose.yml`. Flask dev server with auto-reload, code mounted from your machine.
@@ -81,29 +137,12 @@ Rules the service applies:
 ## CI/CD
 
 - `ci.yml` runs on every pull request and every push to `main`: ruff, then `flask db upgrade` against a Postgres service container, then pytest on that database.
-- `deploy.yml` runs on every push to `main`: it SSHes into the staging server, runs `git pull`, then `docker compose -f docker-compose.prod.yml up -d --build`.
+- `deploy.yml` runs on every push to `main`: it SSHes into the staging server, runs `git pull`, rebuilds with `docker compose -f docker-compose.prod.yml up -d --build`, then applies migrations with `flask db upgrade`. Without the secrets below it skips itself.
 - Required GitHub secrets: `STAGING_HOST`, `STAGING_USER`, `STAGING_SSH_KEY`.
 
-## Preparing the VPS
+## Servers, HTTPS and backups
 
-1. Install Docker Engine and the Compose plugin (https://docs.docker.com/engine/install/ubuntu/).
-2. Create a deploy user, add it to the `docker` group, and add the public half of a new SSH key pair to `~/.ssh/authorized_keys`. Put the private half in the `STAGING_SSH_KEY` secret.
-3. Clone the repository to `~/etike` (the deploy workflow expects this path). Use a read-only deploy key if the repo is private.
-4. In `~/etike`, run `cp .env.example .env`, set `FLASK_ENV=production`, and replace every `change-me` with a strong value. Make `DATABASE_URL` match the Postgres user, password and database.
-5. Run `docker compose -f docker-compose.prod.yml up -d --build` once by hand, then `docker compose -f docker-compose.prod.yml exec api flask --app wsgi db upgrade`, and check `curl http://localhost/api/health`. Run the `upgrade` again after each deploy that adds a migration.
-6. Open ports 22, 80 and 443 in the firewall; close everything else.
-
-## HTTPS with Let's Encrypt
-
-Certificates are issued on the server with Certbot, outside Docker, and Nginx reads them from `/etc/letsencrypt`.
-
-1. Point your domain's DNS A record at the server.
-2. `sudo apt install certbot` and `sudo mkdir -p /var/www/certbot`.
-3. With the stack running on port 80, get a certificate:
-   `sudo certbot certonly --webroot -w /var/www/certbot -d YOUR_DOMAIN`
-4. Copy `nginx/https.conf.example` to `nginx/https.conf`, replace `YOUR_DOMAIN`, and in `docker-compose.prod.yml` change the mounted file from `./nginx/default.conf` to `./nginx/https.conf`.
-5. Restart: `docker compose -f docker-compose.prod.yml up -d`.
-6. Certbot renews automatically; reload Nginx after renewal by adding `--deploy-hook "docker compose -f /home/DEPLOY_USER/etike/docker-compose.prod.yml exec nginx nginx -s reload"` to the renewal config, or run that command monthly.
+Step-by-step server setup, HTTPS with Let's Encrypt, nightly backups and restores, creating the first admin, and the security checklist are in [deployment.md](deployment.md).
 
 ## Where future code goes
 
@@ -111,8 +150,5 @@ Each new module gets a blueprint in `backend/app/routes/`, models in `backend/ap
 
 | Module | Purpose |
 |--------|---------|
-| payments | MoMo sandbox integration |
-| ratings | Passenger and driver feedback |
-| notifications | SMS and in-app messages |
-| admin | Approving drivers and verifying bus companies in the browser |
+| refunds | Refunding paid bookings that are cancelled or paid too late |
 | bus company staff | Companies managing their own trips |

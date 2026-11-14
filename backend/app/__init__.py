@@ -3,6 +3,7 @@
 import os
 
 from flask import Flask
+from flask_cors import CORS
 
 from .config import CONFIGS
 from .extensions import db, jwt, migrate
@@ -31,15 +32,21 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    if app.config["CORS_ORIGINS"]:
+        # Only the listed sites; by default the API answers same-origin only.
+        CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
 
     from . import models  # noqa: F401  (registers the tables)
     from .auth import auth_bp
     from .auth.decorators import register_jwt_errors
     from .cli import register_commands
     from .errors import register_error_handlers
+    from .routes.admin import admin_bp
     from .routes.bookings import bookings_bp
     from .routes.drivers import drivers_bp
     from .routes.health import health_bp
+    from .routes.payments import payments_bp
+    from .routes.ratings import ratings_bp
     from .routes.search import search_bp
 
     app.register_blueprint(health_bp, url_prefix="/api")
@@ -47,6 +54,9 @@ def create_app(config_name=None):
     app.register_blueprint(search_bp, url_prefix="/api")
     app.register_blueprint(drivers_bp, url_prefix="/api")
     app.register_blueprint(bookings_bp, url_prefix="/api")
+    app.register_blueprint(payments_bp, url_prefix="/api")
+    app.register_blueprint(ratings_bp, url_prefix="/api")
+    app.register_blueprint(admin_bp, url_prefix="/api")
 
     register_error_handlers(app)
     register_jwt_errors(jwt)

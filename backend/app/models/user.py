@@ -48,7 +48,9 @@ class Driver(db.Model):
     # Admins approve drivers after checking their licence; until then they
     # cannot post rides.
     is_approved = db.Column(db.Boolean, nullable=False, default=False)
-    avg_rating = db.Column(db.Numeric(2, 1))  # filled in once ratings exist
+    avg_rating = db.Column(db.Numeric(2, 1))  # updated after each rating
+    # Set when an admin rejects the driver. Pending = neither approved nor rejected.
+    rejected_at = db.Column(db.DateTime(timezone=True))
 
     user = db.relationship("User", back_populates="driver")
     vehicles = db.relationship("Vehicle", back_populates="driver")
@@ -58,8 +60,15 @@ class Driver(db.Model):
             "driver_id": self.driver_id,
             "license_number": self.license_number,
             "is_approved": self.is_approved,
+            "status": self.status,
             "avg_rating": float(self.avg_rating) if self.avg_rating is not None else None,
         }
+
+    @property
+    def status(self):
+        if self.is_approved:
+            return "approved"
+        return "rejected" if self.rejected_at else "pending"
 
 
 class Vehicle(db.Model):

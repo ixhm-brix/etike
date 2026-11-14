@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 
 from .. import validation as v
 from ..auth import current_user, role_required
+from ..errors import not_found
 from ..extensions import db
 from ..models import Booking
 from ..services import booking_service
@@ -32,6 +33,15 @@ def my_bookings():
         .all()
     )
     return jsonify({"bookings": [b.to_dict() for b in bookings]})
+
+
+@bookings_bp.get("/bookings/<int:booking_id>")
+@role_required()
+def get_booking(booking_id):
+    booking = db.session.get(Booking, booking_id)
+    if booking is None or booking.user_id != current_user().user_id:
+        raise not_found("Booking not found.")
+    return jsonify({"booking": booking.to_dict()})
 
 
 @bookings_bp.post("/bookings/<int:booking_id>/cancel")

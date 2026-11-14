@@ -7,8 +7,9 @@ from flask import Blueprint, jsonify, request
 from .. import validation as v
 from ..errors import not_found
 from ..extensions import db
-from ..models import BusTrip, Driver, RideOffer, Route
+from ..models import BusCompany, BusTrip, Driver, RideOffer, Route
 from ..places import PLACES
+from ..services.booking_service import release_expired
 
 search_bp = Blueprint("search", __name__)
 
@@ -28,10 +29,13 @@ def list_routes():
 @search_bp.get("/trips")
 def search_trips():
     origin, destination, start, end = _search_window()
+    release_expired()  # so seats from unpaid bookings show as free again
     trips = (
         db.session.query(BusTrip)
         .join(Route)
+        .join(BusCompany)
         .filter(
+            BusCompany.is_verified.is_(True),
             Route.origin == origin,
             Route.destination == destination,
             BusTrip.departure_time >= start,
@@ -47,7 +51,7 @@ def search_trips():
 @search_bp.get("/trips/<int:trip_id>")
 def get_trip(trip_id):
     trip = db.session.get(BusTrip, trip_id)
-    if trip is None:
+    if trip is None or not trip.company.is_verified:
         raise not_found("Bus trip not found.")
     return jsonify({"trip": trip.to_dict()})
 
@@ -55,6 +59,7 @@ def get_trip(trip_id):
 @search_bp.get("/rides")
 def search_rides():
     origin, destination, start, end = _search_window()
+    release_expired()
     query = (
         db.session.query(RideOffer)
         .join(Route)
@@ -80,7 +85,7 @@ def search_rides():
 @search_bp.get("/rides/<int:offer_id>")
 def get_ride(offer_id):
     offer = db.session.get(RideOffer, offer_id)
-    if offer is None:
+    if offer is None or not offer.driver.is_approved:
         raise not_found("Ride not found.")
     return jsonify({"ride": offer.to_dict()})
 
