@@ -35,7 +35,8 @@ In `.env`:
 - Replace every `change-me`. Make `SECRET_KEY` and `JWT_SECRET_KEY` two **different** random values:
   `python3 -c "import secrets; print(secrets.token_hex(32))"`
 - Make `DATABASE_URL` match `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB`.
-- Payments and SMS (optional, see the main README): `FLW_SECRET_KEY`, `FLW_SECRET_HASH`, `FLW_REDIRECT_URL=https://YOUR_DOMAIN/payment.html`, `AT_USERNAME`, `AT_API_KEY`.
+- Payments (optional, see "MTN MoMo payments" below): the `MOMO_*` variables.
+- SMS (optional, see the main README): `AT_USERNAME`, `AT_API_KEY`.
 
 `.env` never goes into Git. The full list of variables is in the main [README](../README.md#environment-variables).
 
@@ -65,7 +66,60 @@ docker compose -f docker-compose.prod.yml exec api flask --app wsgi create-admin
 
 It asks for a name, phone number and password (at least 12 characters). Then log in on the website with that phone number; admins land on the Drivers page, where they approve drivers and verify bus companies.
 
-## 5. Turn on HTTPS (Let's Encrypt)
+## 5. MTN MoMo payments
+
+### Which sandbox we use
+
+We test on MTN's **global** sandbox: portal https://momodeveloper.mtn.com, API address `https://sandbox.momodeveloper.mtn.com`.
+
+MTN Rwanda has its own portal (https://momodeveloper.mtn.co.rw, API address `https://sandbox.momodeveloper.mtn.co.rw`), but on 16 November 2026 its sandbox failed on MTN's side: with a valid, active Collections key, `POST /v1_0/apiuser` answered `404 Resource not found` and `POST /collection/token/` never answered. Keys from one portal do not work on the other (the wrong one answers 401).
+
+Production will use the Rwanda host with Rwanda live keys (see "Going live" below).
+
+### Sandbox set-up
+
+1. Sign up at https://momodeveloper.mtn.com and subscribe to the **Collections** product. Your profile page shows its primary and secondary keys.
+2. In `.env` on the server:
+   ```
+   MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
+   MOMO_TARGET_ENVIRONMENT=sandbox
+   MOMO_SUBSCRIPTION_KEY=the Collections primary key
+   MOMO_CURRENCY=EUR
+   ```
+3. Restart, then create the sandbox API user and key. The callback host must be the domain MoMo will call:
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   docker compose -f docker-compose.prod.yml exec api flask --app wsgi momo-create-user --callback-host YOUR_DOMAIN
+   ```
+   Put the two lines it prints (`MOMO_API_USER`, `MOMO_API_KEY`) in `.env` and restart again.
+4. Optional: `MOMO_CALLBACK_URL=https://YOUR_DOMAIN/api/payments/callback`. Payments work without it, because the payment page checks the status itself; the callback only makes confirmation arrive even if the passenger closes the page. We have not tested the callback against the sandbox: if a request to pay is refused with the callback set, remove it.
+
+If MoMo answers "Access denied due to invalid subscription key", the key is from the other portal, the Collections subscription is not active, or the key was regenerated.
+
+### Currency
+
+The sandbox accepts **EUR only**. We checked on 16 November 2026: a request to pay in RWF (and in USD) is refused with `INVALID_CURRENCY: Currency not supported`, and the same request in EUR succeeds. So in the sandbox `MOMO_CURRENCY=EUR`, the booking's amount in francs is sent as the same number of euros, and the payment page shows a "Sandbox test currency" note. No real money moves.
+
+### MoMo sandbox test numbers
+
+In the sandbox no phone rings. The payer number decides what happens. These are the answers we got from the global sandbox on 16 November 2026:
+
+| Payer number | Status from MoMo | What ETIKE does |
+|--------------|------------------|-----------------|
+| Any normal number, e.g. `0781234567` | `SUCCESSFUL` at once | Booking confirmed |
+| `46733123450` | `FAILED`, reason `INTERNAL_PROCESSING_ERROR` | Booking cancelled, seats returned, "Payment didn't go through" |
+| `46733123451` | `FAILED`, reason `APPROVAL_REJECTED` | Booking cancelled, seats returned, "Payment declined" |
+| `46733123452` | `FAILED`, reason `EXPIRED` | Booking cancelled, seats returned, "Payment not approved in time" |
+| `46733123453` | `PENDING` (stayed pending for the 40 seconds we watched) | Keeps waiting; the booking expires after the 15-minute hold |
+| `46733123454` | `CREATED`, then `SUCCESSFUL` a few seconds later | Waits, then booking confirmed |
+
+While `MOMO_TARGET_ENVIRONMENT=sandbox`, the payment page accepts these test numbers as well as MTN Rwanda numbers (078, 079). In production only MTN Rwanda numbers are accepted.
+
+### Going live
+
+Production needs a MoMo business account approved by MTN Rwanda (KYC). MTN then gives you the live subscription key, API user and API key. Set `MOMO_BASE_URL` to the live Rwanda address MTN gives you, `MOMO_TARGET_ENVIRONMENT=mtnrwanda` and `MOMO_CURRENCY=RWF`. `flask momo-create-user` is for the sandbox only. Make one small real payment before opening to the public: the live service has not been tested.
+
+## 6. Turn on HTTPS (Let's Encrypt)
 
 1. With the stack running on port 80:
    ```bash
@@ -85,7 +139,7 @@ It asks for a name, phone number and password (at least 12 characters). Then log
 
 The HTTPS config adds HSTS on top of the headers Nginx always sends (Content Security Policy, no framing, no MIME sniffing, strict referrer). Both configs limit `/api/auth/` (login and sign-up) to 10 requests a minute per IP address, answering 429 beyond that.
 
-## 6. Automatic deploys from GitHub
+## 7. Automatic deploys from GitHub
 
 `.github/workflows/deploy.yml` runs on every push to `main`: it SSHes in, runs `git pull`, rebuilds, and applies migrations (`flask db upgrade`). Until these GitHub secrets exist it skips itself instead of failing:
 
@@ -95,7 +149,7 @@ The HTTPS config adds HSTS on top of the headers Nginx always sends (Content Sec
 | `STAGING_USER` | `deploy` |
 | `STAGING_SSH_KEY` | Private half of a new key pair made only for deploys; add the public half to `~/.ssh/authorized_keys` on the server |
 
-## 7. Background job: expire unpaid bookings
+## 8. Background job: expire unpaid bookings
 
 Unpaid bookings are also released whenever someone searches or books, but run the release every minute too, so seats come back even when the site is quiet:
 
@@ -104,7 +158,7 @@ crontab -e
 * * * * * cd /home/deploy/etike && docker compose -f docker-compose.prod.yml exec -T api flask --app wsgi expire-bookings > /dev/null
 ```
 
-## 8. Backups
+## 9. Backups
 
 `infra/backups/backup-db.sh` saves a compressed `pg_dump` named `etike-YYYY-MM-DD.sql.gz` in `~/backups` and keeps the newest 7. Add it to cron (every night at 02:30):
 
@@ -134,10 +188,10 @@ Backups contain personal data (names, phone numbers), so the folder is readable 
 
 Test a restore into a scratch database now and then; a backup you have never restored is a guess.
 
-## 9. Security checklist
+## 10. Security checklist
 
 - [ ] `.env` has `chmod 600`, real random secrets, and is not in Git.
-- [ ] Flutterwave keys are TEST keys until the team decides to go live.
+- [ ] MoMo stays on the sandbox (`MOMO_TARGET_ENVIRONMENT=sandbox`) until MTN approves the live account.
 - [ ] `CORS_ORIGINS` is empty unless another site must call the API.
 - [ ] Only ports 22, 80 and 443 are open; SSH keys only, no root login.
 - [ ] HTTPS is on and SSL Labs gives an A.

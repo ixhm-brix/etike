@@ -1031,6 +1031,11 @@ a {
 .countdown.is-urgent {
   color: var(--bad);
 }
+.sandbox-note {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--gray-700);
+}
 .waiting {
   margin-top: 1.5rem;
   display: grid;

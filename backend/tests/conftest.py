@@ -139,43 +139,43 @@ def make_offer(app):
     return make
 
 
-class FakeFlutterwave:
-    """Stands in for Flutterwave in tests.
+class FakeMomo:
+    """Stands in for MTN MoMo in tests.
 
-    Set .transaction to what verify_by_reference should return: None while
-    the customer hasn't paid, or a dict like Flutterwave's `data`.
+    After a request to pay, MoMo says PENDING until the test calls
+    .answers("SUCCESSFUL") or .answers("FAILED", reason="APPROVAL_REJECTED").
     """
 
     def __init__(self):
-        self.charges = []
-        self.transaction = None
-        self.fail_charges = False
+        self.requests = []
+        self.answer = {"status": "PENDING"}
+        self.fail_requests = False
+        self.status_checks = 0
 
-    def charge_rwanda_mobile_money(self, tx_ref, amount, phone, email, fullname,
-                                   redirect_url=None):
-        from app.services.flutterwave_client import FlutterwaveError
+    def request_to_pay(self, reference, amount, phone, external_id, message):
+        from app.services.momo_client import MomoError
 
-        if self.fail_charges:
-            raise FlutterwaveError("Flutterwave could not be reached")
-        self.charges.append({"tx_ref": tx_ref, "amount": amount, "phone": phone,
-                             "email": email})
-        return f"https://checkout.example.test/{tx_ref}"
+        if self.fail_requests:
+            raise MomoError("MoMo could not be reached")
+        self.requests.append({"reference": reference, "amount": amount, "phone": phone,
+                              "external_id": external_id})
 
-    def verify_by_reference(self, tx_ref):
-        return self.transaction
+    def get_status(self, reference):
+        self.status_checks += 1
+        return self.answer
 
-    def pays(self, status="successful", **changes):
-        """Make the last charge come back with this status."""
-        charge = self.charges[-1]
-        self.transaction = {"tx_ref": charge["tx_ref"], "amount": charge["amount"],
-                            "currency": "RWF", "status": status, **changes}
+    def answers(self, status, **changes):
+        """Make MoMo report this status for the last request to pay."""
+        last = self.requests[-1]
+        self.answer = {"status": status, "amount": str(last["amount"]), "currency": "EUR",
+                       "externalId": str(last["external_id"]), **changes}
 
 
 @pytest.fixture()
-def flutterwave(monkeypatch):
+def momo(monkeypatch):
     from app.services import payment_service
 
-    fake = FakeFlutterwave()
+    fake = FakeMomo()
     monkeypatch.setattr(payment_service, "get_payment_client", lambda: fake)
     return fake
 

@@ -8,7 +8,7 @@ It is a BSc Software Engineering project by Team 3 at African Leadership Univers
 
 - Frontend: HTML, CSS, JavaScript (no frameworks)
 - Backend: Python 3.12, Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-JWT-Extended, Gunicorn
-- Payments: Flutterwave (Rwanda mobile money, test mode). SMS: Africa's Talking
+- Payments: MTN MoMo (Collections API, sandbox). SMS: Africa's Talking
 - Database: PostgreSQL 16
 - Nginx, Docker, Docker Compose
 - GitHub Actions for CI/CD, pytest for tests, ruff for linting
@@ -89,23 +89,37 @@ Admins log in on the website like anyone else and land on **Drivers** (approve o
 ## Booking and payment flow
 
 1. A passenger books: the booking is **pending** and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default).
-2. They pay with mobile money through Flutterwave. Success makes the booking **confirmed** and sends an SMS to the passenger (and to the driver for a ride).
-3. A failed payment, or a hold that runs out, makes it **cancelled** and returns the seats. Expired holds are released before every search and booking, and by `flask --app wsgi expire-bookings` (run it from cron on the server, see [docs/deployment.md](docs/deployment.md)).
+2. They pay with MTN MoMo: a request is sent to their phone and they approve it with their MoMo PIN. Success makes the booking **confirmed** and sends an SMS to the passenger (and to the driver for a ride).
+3. A failed or declined payment, or a hold that runs out, makes it **cancelled** and returns the seats. Expired holds are released before every search and booking, and by `flask --app wsgi expire-bookings` (run it from cron on the server, see [docs/deployment.md](docs/deployment.md)).
 4. After a shared or private ride has left, the passenger can rate the driver once, from 1 to 5.
 
 Paid bookings can't be cancelled online yet, because refunds are not built.
 
-## Payments with Flutterwave (test mode)
+## Payments with MTN MoMo (sandbox)
 
-1. Create a Flutterwave account at https://dashboard.flutterwave.com and stay in **Test mode**.
-2. **Settings > API keys**: copy the test secret key (`FLWSECK_TEST-...`) into `FLW_SECRET_KEY` in `.env`.
-3. Set `FLW_REDIRECT_URL` to the payment page (`http://localhost/payment.html` locally, `https://YOUR_DOMAIN/payment.html` on the server). Customers come back there after paying.
-4. Webhook (server only, Flutterwave can't reach `localhost`): **Settings > Webhooks**, URL `https://YOUR_DOMAIN/api/payments/webhook`, and a **secret hash** of your choice (long random text). Put the same text in `FLW_SECRET_HASH`.
-5. Restart: `docker compose up -d`.
+Payments use the MTN MoMo Collections API ("request to pay"): the passenger gets a prompt on their phone and approves with their MoMo PIN.
 
-To test: book a trip, click **Pay with MoMo**. A Flutterwave page opens in a new tab; use the test OTP **123456**. The ETIKE payment page keeps checking and shows the result. The server always verifies the transaction with Flutterwave (`tx_ref`, amount and currency must match) before confirming, and never trusts the webhook's content on its own.
+We test on MTN's **global** sandbox, because MTN Rwanda's own sandbox (`sandbox.momodeveloper.mtn.co.rw`) currently fails on MTN's side. Production will use the Rwanda host with Rwanda live keys. Details are in [docs/deployment.md](docs/deployment.md#5-mtn-momo-payments).
 
-Without `FLW_SECRET_KEY`, starting a payment returns **503** "Mobile money payments are not available right now". Nothing is ever marked paid without Flutterwave confirming it.
+1. Sign up at https://momodeveloper.mtn.com (the global portal), subscribe to the **Collections** product, and copy its **primary key** from your profile.
+2. In `.env` (copy `.env.example` if you don't have one):
+   ```
+   MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
+   MOMO_TARGET_ENVIRONMENT=sandbox
+   MOMO_SUBSCRIPTION_KEY=your Collections primary key
+   MOMO_CURRENCY=EUR
+   ```
+3. Restart (`docker compose up -d`), then create your sandbox API user and key:
+   ```bash
+   docker compose exec api flask --app wsgi momo-create-user
+   ```
+   Copy the two lines it prints (`MOMO_API_USER=...` and `MOMO_API_KEY=...`) into `.env` and restart again. Every teammate can do this with their own key.
+
+To test: book a trip and click **Pay with MoMo**. In the sandbox nobody's phone rings; the number you enter decides the result. A normal MTN number such as `0781234567` succeeds, `46733123450` fails and `46733123451` is declined (the full list is in [docs/deployment.md](docs/deployment.md#momo-sandbox-test-numbers)). The sandbox only accepts EUR, so the payment page shows a "Sandbox test currency" note. The page keeps checking until MoMo answers.
+
+The server sets the amount from the booking, and before confirming it checks that MoMo's answer has the same amount, currency and booking ID. A callback from MoMo is never trusted on its own: the server always asks MoMo for the status first.
+
+Without the MoMo settings, starting a payment returns **503** "Mobile money payments are not available right now". Nothing is ever marked paid without MoMo confirming it.
 
 ## SMS with Africa's Talking (sandbox)
 
@@ -138,9 +152,9 @@ All responses are JSON. Errors always look like `{"error": {"code": "...", "mess
 | `GET /api/bookings/mine` | logged in | My bookings |
 | `GET /api/bookings/<id>` | logged in | One of my bookings |
 | `POST /api/bookings/<id>/cancel` | logged in | Cancel my unpaid booking and free its seats |
-| `POST /api/payments` | passenger | Start paying a pending booking (`booking_id`, optional `phone` and `email`). Returns the Flutterwave `checkout_url` |
-| `GET /api/payments/<booking_id>/status` | logged in | Verify the payment with Flutterwave and update the booking |
-| `POST /api/payments/webhook` | Flutterwave | Webhook. Needs the `verif-hash` header; safe to receive twice |
+| `POST /api/payments` | passenger | Send a MoMo request to pay for a pending booking (`booking_id`, optional MTN `phone`). The amount comes from the booking |
+| `GET /api/payments/<booking_id>/status` | logged in | Ask MoMo for the payment's status and update the booking |
+| `POST /api/payments/callback` | MTN MoMo | Callback (POST or PUT). The status is always re-checked with MoMo; safe to receive twice |
 | `POST /api/ratings` | passenger | Rate a driver (`booking_id`, `score` 1 to 5, optional `comment`) after a confirmed ride |
 | `GET /api/drivers/<id>/ratings` | anyone | A driver's average and recent comments |
 | `GET /api/admin/drivers?status=pending` | admin | Drivers by status: `pending`, `approved`, `rejected` or `all` |
@@ -164,10 +178,12 @@ Dates and times are Rwanda local time, written like `2026-12-24` and `2026-12-24
 | `GUNICORN_WORKERS` | api | Worker processes in production (default 3) |
 | `BOOKING_HOLD_MINUTES` | api | How long an unpaid booking holds its seats (default 15) |
 | `CORS_ORIGINS` | api | Other sites allowed to call the API from a browser, comma separated. Empty by default (same-origin only) |
-| `FLW_SECRET_KEY` | api | Flutterwave secret key (test key: `FLWSECK_TEST-...`). Without it payments return 503 |
-| `FLW_SECRET_HASH` | api | Secret hash set in the Flutterwave dashboard; checked on every webhook |
-| `FLW_REDIRECT_URL` | api | Page customers return to after paying, e.g. `https://YOUR_DOMAIN/payment.html` |
-| `FLW_BASE_URL` | api | Flutterwave API address (default `https://api.flutterwave.com`) |
+| `MOMO_BASE_URL` | api | MoMo API address (default: the global sandbox, `https://sandbox.momodeveloper.mtn.com`) |
+| `MOMO_TARGET_ENVIRONMENT` | api | `sandbox` for testing (default), `mtnrwanda` in production |
+| `MOMO_SUBSCRIPTION_KEY` | api | Primary key of the MoMo Collections product |
+| `MOMO_API_USER`, `MOMO_API_KEY` | api | MoMo API user and key. In the sandbox, create them with `flask momo-create-user`. Without these three, payments return 503 |
+| `MOMO_CURRENCY` | api | `EUR` in the sandbox (the only one it accepts), `RWF` in production |
+| `MOMO_CALLBACK_URL` | api | Optional. Address MoMo calls when a payment finishes, e.g. `https://YOUR_DOMAIN/api/payments/callback` |
 | `AT_USERNAME`, `AT_API_KEY` | api | Africa's Talking SMS. `sandbox` and a sandbox key for testing. Without them SMS is skipped |
 | `AT_SENDER_ID` | api | Optional registered SMS sender ID |
 | `ADMIN_NAME`, `ADMIN_PHONE`, `ADMIN_PASSWORD` | `create-admin` | Optional; the command asks for anything not set. Remove after use |

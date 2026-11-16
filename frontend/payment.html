@@ -36,21 +36,19 @@
       <dl class="summary" id="summary"></dl>
       <p class="countdown" id="countdown" aria-live="polite"></p>
 
+      <p class="sandbox-note" id="sandbox-note" hidden></p>
+
       <form class="form" id="pay-form" novalidate>
         <label class="field">
-          <span>Mobile money number (MTN or Airtel)</span>
-          <input type="tel" name="phone" autocomplete="tel" inputmode="tel" required>
-        </label>
-        <label class="field" id="email-field" hidden>
-          <span>Email for your receipt</span>
-          <input type="email" name="email" autocomplete="email">
+          <span>MTN MoMo number</span>
+          <input type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="078 123 4567" required>
         </label>
         <button class="btn-black" type="submit">Pay with MoMo</button>
       </form>
 
       <div class="waiting" id="waiting" hidden>
-        <p><strong>Approve the payment on the Flutterwave page.</strong> We opened it in a new tab. This page updates by itself when the payment goes through.</p>
-        <a class="btn-gray btn-sm" id="checkout-link" target="_blank" rel="noopener">Open the payment page again</a>
+        <p><strong>Check your phone and enter your MoMo PIN to approve.</strong></p>
+        <p>This page updates by itself when the payment goes through. Keep it open.</p>
       </div>
     </section>
 

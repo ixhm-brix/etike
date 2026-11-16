@@ -63,6 +63,7 @@ const api = (() => {
   return {
     ApiError,
     get: (path) => request(path),
-    post: (path, body) => request(path, { method: "POST", body: body || {} }),
+    // options: { timeoutMs } for slow requests such as starting a payment.
+    post: (path, body, options) => request(path, { method: "POST", body: body || {}, ...options }),
   };
 })();

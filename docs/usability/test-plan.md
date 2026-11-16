@@ -26,14 +26,14 @@ Before each session, read the participant this (in Kinyarwanda or English, their
 - The session takes about 20 minutes and you can stop at any time without giving a reason.
 - We will take notes and time the tasks. We will not record your face, voice or screen unless you agree separately.
 - We do not keep your name or phone number with the results. You get an ID like P3.
-- Payments use Flutterwave's TEST mode: no real money moves.
+- Payments use MTN MoMo's sandbox: no real money moves and your phone will not be charged.
 
 Keep signed consent forms (or a note that consent was given) separate from the results, and destroy them when the project ends. Do not put them in the repository.
 
 ## Set-up
 
 - A test phone with the site open, logged out, on mobile data (not office Wi-Fi), so the speed is realistic.
-- Payments in Flutterwave test mode. For the payment task, tell the participant the test OTP: 123456.
+- Payments on the MoMo sandbox. No phone prompt arrives in the sandbox: tell the participant to enter any MTN number (for example their own) and that the approval step is simulated.
 - For the rating task, a confirmed test ride booking that has already departed, made by the facilitator beforehand on the test server (not the live database).
 - For the driver task, a test driver account already approved by the facilitator.
 - One facilitator who gives the tasks and stays quiet, and one note-taker with a stopwatch.

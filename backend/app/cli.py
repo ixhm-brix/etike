@@ -3,9 +3,12 @@
     flask --app wsgi create-admin
     flask --app wsgi approve-driver 0781234567
     flask --app wsgi expire-bookings
+    flask --app wsgi momo-create-user      (MoMo sandbox only)
 """
 
 import os
+import uuid
+from urllib.parse import urlparse
 
 import click
 from werkzeug.security import generate_password_hash
@@ -14,6 +17,7 @@ from . import validation as v
 from .errors import ApiError
 from .extensions import db
 from .models import User
+from .services import momo_client
 from .services.booking_service import release_expired
 
 
@@ -70,3 +74,35 @@ def register_commands(app):
         """Cancel unpaid bookings whose hold has run out and free their seats."""
         count = release_expired()
         click.echo(f"Released {count} expired booking(s).")
+
+    @app.cli.command("momo-create-user")
+    @click.option("--callback-host", default=None,
+                  help="Host MoMo may send callbacks to (default: from MOMO_CALLBACK_URL, "
+                       "or localhost).")
+    def momo_create_user(callback_host):
+        """Create a MoMo SANDBOX API user and API key for your .env.
+
+        Needs MOMO_SUBSCRIPTION_KEY (the Collections key from your profile on
+        momodeveloper.mtn.com). Each teammate can run this for their own .env.
+        Production credentials come from the MoMo partner portal instead.
+        """
+        cfg = app.config
+        if not cfg.get("MOMO_SUBSCRIPTION_KEY"):
+            raise click.ClickException("Set MOMO_SUBSCRIPTION_KEY in .env first.")
+        if cfg["MOMO_TARGET_ENVIRONMENT"] != "sandbox":
+            raise click.ClickException("This command only works for the MoMo sandbox.")
+        host = (callback_host or urlparse(cfg.get("MOMO_CALLBACK_URL") or "").hostname
+                or "localhost")
+        api_user = str(uuid.uuid4())
+        try:
+            api_key = momo_client.create_sandbox_user(
+                cfg["MOMO_BASE_URL"], cfg["MOMO_SUBSCRIPTION_KEY"], api_user, host
+            )
+        except momo_client.MomoError as err:
+            raise click.ClickException(
+                f"{err}. Check the subscription key and try again."
+            ) from None
+        click.echo("# MoMo sandbox API user created. Add these two lines to .env,")
+        click.echo("# then restart: docker compose up -d")
+        click.echo(f"MOMO_API_USER={api_user}")
+        click.echo(f"MOMO_API_KEY={api_key}")

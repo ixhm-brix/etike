@@ -38,6 +38,26 @@ def phone(value, field="phone"):
     return "+250" + match.group(1)
 
 
+# MTN Rwanda numbers start with 078 or 079. The MoMo sandbox has its own
+# made-up test numbers (46733123450 to 46733123454, see docs/deployment.md).
+MTN_RE = re.compile(r"^(?:\+?250|0)?(7[89]\d{7})$")
+SANDBOX_MSISDN_RE = re.compile(r"^\+?(46733123\d{3})$")
+
+
+def momo_phone(value, field="phone", sandbox=False):
+    """A number MoMo can charge, as an MSISDN without "+" (250781234567)."""
+    digits = re.sub(r"[\s-]", "", str(value or ""))
+    match = MTN_RE.match(digits)
+    if match:
+        return "250" + match.group(1)
+    if sandbox and SANDBOX_MSISDN_RE.match(digits):
+        return digits.lstrip("+")
+    raise bad_request(
+        "Enter an MTN MoMo number, like 078 123 4567.",
+        {field: "Must be an MTN Rwanda number (078 or 079)."},
+    )
+
+
 def text(data, field, min_len=1, max_len=100, required=True):
     value = " ".join(str(data.get(field) or "").split())
     if not value:

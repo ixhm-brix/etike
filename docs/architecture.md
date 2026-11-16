@@ -17,13 +17,12 @@ flowchart LR
         Nginx[Nginx<br/>static files + proxy] -->|/api/*| Flask[Flask + Gunicorn]
         Flask --> DB[(PostgreSQL 16)]
     end
-    Flask --> FLW[Flutterwave<br/>mobile money]
+    Flask --> MOMO[MTN MoMo<br/>Collections API]
     Flask --> SMS[Africa's Talking<br/>SMS]
     Browser -->|routes on the map| OSRM[OSRM router<br/>OpenStreetMap]
-    Browser -->|approve payment| FLW
 ```
 
-Flutterwave and Africa's Talking are optional: without their keys, payments answer 503 and SMS is skipped.
+MoMo and Africa's Talking are optional: without their keys, payments answer 503 and SMS is skipped.
 
 ## Backend modules
 
@@ -34,13 +33,13 @@ Flutterwave and Africa's Talking are optional: without their keys, payments answ
 | Search | `app/routes/search.py` | Places, routes, bus trips and ride offers. Public |
 | Drivers | `app/routes/drivers.py` | Vehicles, and posting rides (approved drivers only) |
 | Bookings | `app/routes/bookings.py`, `app/services/booking_service.py` | Book (pending, seats held), confirm, cancel and release expired holds, without double booking |
-| Payments | `app/routes/payments.py`, `app/services/payment_service.py`, `app/services/flutterwave_client.py` | Rwanda mobile money through Flutterwave: start, verify, webhook |
+| Payments | `app/routes/payments.py`, `app/services/payment_service.py`, `app/services/momo_client.py` | MTN MoMo request to pay: start, check status, callback |
 | SMS | `app/services/sms_service.py` | Booking confirmations through Africa's Talking; failures are logged, never raised |
 | Ratings | `app/routes/ratings.py` | Passengers rate drivers after a ride; keeps `drivers.avg_rating` up to date |
 | Admin | `app/routes/admin.py` | Approve or reject drivers, verify bus companies (admin role only) |
 | Validation and errors | `app/validation.py`, `app/errors.py` | Input checks and one JSON error format |
 | Places | `app/places.py` | The 28 places people travel between (Kigali's three districts count as one) and old town names such as Butare for Huye |
-| Commands | `app/cli.py` | `flask create-admin`, `flask approve-driver`, `flask expire-bookings` |
+| Commands | `app/cli.py` | `flask create-admin`, `flask approve-driver`, `flask expire-bookings`, `flask momo-create-user` (sandbox) |
 
 Data gets in through `data/scripts/clean_data.py` and `load_data.py`, from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded.
 
@@ -81,7 +80,7 @@ Rules the service applies:
 
 ## Paying for a booking
 
-A new booking is `pending` and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default). The passenger pays with Rwanda mobile money through Flutterwave:
+A new booking is `pending` and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default). The passenger pays with MTN MoMo and approves on their own phone:
 
 ```mermaid
 sequenceDiagram
@@ -89,43 +88,47 @@ sequenceDiagram
     participant W as ETIKE website
     participant A as Flask API
     participant DB as PostgreSQL
-    participant F as Flutterwave
+    participant M as MTN MoMo
     participant S as Africa's Talking
 
     P->>W: Book seats
     W->>A: POST /api/bookings
     A->>DB: lock trip/offer, hold seats, booking = pending (expires in 15 min)
     A-->>W: booking
-    P->>W: Pay with MoMo (phone number)
-    W->>A: POST /api/payments {booking_id}
-    A->>DB: payment = pending, tx_ref = etike-<booking>-<random>
-    A->>F: POST /v3/charges?type=mobile_money_rwanda (amount from the booking)
-    F-->>A: redirect URL
-    A-->>W: checkout_url
-    W->>F: open Flutterwave page in a new tab
-    P->>F: approve (test OTP 123456)
+    P->>W: Pay with MoMo (MTN number)
+    W->>A: POST /api/payments {booking_id, phone}
+    A->>DB: payment = pending, reference = new UUID
+    A->>M: POST /collection/token/ (cached for about an hour)
+    A->>M: POST /collection/v1_0/requesttopay (X-Reference-Id = reference, amount from the booking, externalId = booking ID)
+    M-->>A: 202 Accepted
+    A-->>W: payment pending
+    M->>P: prompt on the phone
+    P->>M: approve with MoMo PIN (or decline)
     par Website keeps checking
         W->>A: GET /api/payments/<booking>/status (every few seconds)
-    and Flutterwave webhook (server only)
-        F->>A: POST /api/payments/webhook (verif-hash header)
+    and MoMo callback (optional)
+        M->>A: POST /api/payments/callback
     end
-    A->>F: GET /v3/transactions/verify_by_reference?tx_ref=...
-    F-->>A: status, tx_ref, amount, currency
-    alt successful and tx_ref, amount and currency match
+    A->>M: GET /collection/v1_0/requesttopay/<reference>
+    M-->>A: status, amount, currency, externalId, reason
+    alt SUCCESSFUL and amount, currency and booking ID match
         A->>DB: lock payment and booking: payment = success, booking = confirmed
         A->>S: SMS to passenger (and to the driver for a ride)
         A-->>W: confirmed
-    else failed or details don't match
-        A->>DB: payment = failed, booking = cancelled, seats returned
+    else FAILED (declined, timed out, no funds...) or details don't match
+        A->>DB: payment = failed with MoMo's reason, booking = cancelled, seats returned
         A-->>W: cancelled
+    else PENDING
+        A-->>W: still waiting
     end
 ```
 
 Rules the payment service applies:
 
 - The amount always comes from the booking. Anything the client sends as an amount is ignored.
-- A webhook is only a hint. Its secret hash must match `FLW_SECRET_HASH`, and even then the API asks Flutterwave for the transaction before changing anything.
-- Settling is done once, under a row lock: a second webhook or status check for the same payment changes nothing.
+- Every request to pay gets a new UUID, stored as the payment's unique reference.
+- A callback is only a hint. Anyone can call that address, so the API uses it only to find the payment, then asks MoMo for the real status before changing anything.
+- Settling is done once, under a row lock: a second callback or status check for the same payment changes nothing.
 - An SMS is sent after the database commit, and its failure is only logged, so SMS can never undo a booking.
 - If the 15 minutes run out, the booking is cancelled and its seats return (before every search and booking, and by `flask expire-bookings` from cron). If the payment still succeeds afterwards, the seats are taken again if they are free; if not, the booking stays cancelled and an error is logged so the payment can be refunded by hand. Automatic refunds are not built yet.
 

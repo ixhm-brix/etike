@@ -5,13 +5,13 @@ PAYMENT_STATUSES = ("pending", "success", "failed")
 
 
 class Payment(db.Model):
-    """One mobile money payment (through Flutterwave) per booking. If it
-    fails, the booking is cancelled and the passenger books again."""
+    """One MTN MoMo payment per booking. If it fails, the booking is
+    cancelled and the passenger books again."""
 
     __tablename__ = "payments"
     __table_args__ = (
         db.CheckConstraint(f"status IN {PAYMENT_STATUSES}", name="status"),
-        db.CheckConstraint("method = 'momo'", name="method"),
+        db.CheckConstraint("method = 'mtn_momo'", name="method"),
         db.CheckConstraint("amount >= 0", name="amount_not_negative"),
     )
 
@@ -20,12 +20,12 @@ class Payment(db.Model):
         db.Integer, db.ForeignKey("bookings.booking_id"), nullable=False, unique=True
     )
     amount = db.Column(db.Integer, nullable=False)
-    method = db.Column(db.String(10), nullable=False, default="momo")
+    method = db.Column(db.String(10), nullable=False, default="mtn_momo")
     status = db.Column(db.String(10), nullable=False, default="pending")
-    # Our tx_ref for Flutterwave, e.g. "etike-12-3f9a1c2b"; used to verify.
+    # The X-Reference-Id (a UUID) we gave MoMo for this request to pay.
     reference = db.Column(db.String(64), nullable=False, unique=True)
-    # Flutterwave page where the customer approves the payment.
-    checkout_url = db.Column(db.String(500))
+    # Why it failed, in MoMo's words, e.g. APPROVAL_REJECTED or EXPIRED.
+    failure_reason = db.Column(db.String(60))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
@@ -40,7 +40,7 @@ class Payment(db.Model):
             "amount": self.amount,
             "method": self.method,
             "status": self.status,
-            "checkout_url": self.checkout_url if self.status == "pending" else None,
+            "failure_reason": self.failure_reason,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

@@ -20,14 +20,23 @@ class BaseConfig:
     # domain through Nginx and need no CORS.
     CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 
-    # Flutterwave (Rwanda mobile money). Test-mode keys start with FLWSECK_TEST.
-    FLW_BASE_URL = os.environ.get("FLW_BASE_URL", "https://api.flutterwave.com")
-    FLW_SECRET_KEY = os.environ.get("FLW_SECRET_KEY")
-    # The "secret hash" set in the Flutterwave dashboard under Webhooks.
-    FLW_SECRET_HASH = os.environ.get("FLW_SECRET_HASH")
-    # Where Flutterwave sends the customer back after paying, e.g.
-    # https://etike.example/payment.html
-    FLW_REDIRECT_URL = os.environ.get("FLW_REDIRECT_URL")
+    # MTN MoMo Collections API. Sandbox: https://momodeveloper.mtn.com
+    MOMO_BASE_URL = os.environ.get("MOMO_BASE_URL") or "https://sandbox.momodeveloper.mtn.com"
+    # "sandbox" for testing; "mtnrwanda" in production.
+    MOMO_TARGET_ENVIRONMENT = os.environ.get("MOMO_TARGET_ENVIRONMENT") or "sandbox"
+    # Subscription key of the Collections product.
+    MOMO_SUBSCRIPTION_KEY = os.environ.get("MOMO_SUBSCRIPTION_KEY")
+    # In the sandbox, create these two with `flask momo-create-user`.
+    MOMO_API_USER = os.environ.get("MOMO_API_USER")
+    MOMO_API_KEY = os.environ.get("MOMO_API_KEY")
+    # The sandbox only accepts EUR; production uses RWF.
+    MOMO_CURRENCY = os.environ.get("MOMO_CURRENCY") or (
+        "EUR" if MOMO_TARGET_ENVIRONMENT == "sandbox" else "RWF"
+    )
+    # Optional. Address MoMo calls when a payment finishes, e.g.
+    # https://etike.example/api/payments/callback. The payment page also
+    # checks the status itself, so payments work without it.
+    MOMO_CALLBACK_URL = os.environ.get("MOMO_CALLBACK_URL")
 
     # Africa's Talking SMS. Username "sandbox" uses their sandbox.
     AT_USERNAME = os.environ.get("AT_USERNAME")
@@ -50,8 +59,10 @@ class TestConfig(BaseConfig):
     SECRET_KEY = "test-only-key"
     JWT_SECRET_KEY = "test-only-jwt-key-that-is-long-enough-for-hs256"
     BOOKING_HOLD_MINUTES = 15
-    # Tests never talk to the real Flutterwave or SMS services.
-    FLW_SECRET_KEY = FLW_SECRET_HASH = FLW_REDIRECT_URL = None
+    # Tests never talk to the real MoMo or SMS services.
+    MOMO_SUBSCRIPTION_KEY = MOMO_API_USER = MOMO_API_KEY = MOMO_CALLBACK_URL = None
+    MOMO_TARGET_ENVIRONMENT = "sandbox"
+    MOMO_CURRENCY = "EUR"
     AT_USERNAME = AT_API_KEY = None
 
 

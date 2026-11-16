@@ -1,15 +1,16 @@
-"""Paying for a booking with Rwanda mobile money through Flutterwave.
+"""Paying for a booking with MTN MoMo (Collections API, "request to pay").
 
 1. start(): the passenger asks to pay their pending booking. We save a
-   pending payment with a unique tx_ref and ask Flutterwave to start a
-   charge. The amount always comes from the booking, never from the client.
-2. The passenger approves on the Flutterwave page we send them to.
-3. check() asks Flutterwave how it went (verify by tx_ref). It runs when
-   the payment page polls, and when Flutterwave's webhook arrives. We never
-   trust a webhook's body: it only tells us which payment to check.
-4. Before confirming we compare tx_ref, currency and amount with ours.
+   pending payment with a new UUID reference and send MoMo a request to
+   pay. The amount always comes from the booking, never from the client.
+2. MoMo asks the passenger to approve on their phone with their MoMo PIN.
+3. check() asks MoMo how it went. It runs when the payment page polls, and
+   when MoMo calls our callback. We never trust what a callback says: it
+   only tells us which payment to check, and the answer comes from MoMo.
+4. Before confirming we compare the amount, currency and booking ID
+   (externalId) in MoMo's answer with ours.
 5. settle() applies the answer once. Calling it again changes nothing, so
-   a webhook that arrives twice is harmless.
+   a callback that arrives twice is harmless.
 """
 
 import logging
@@ -18,17 +19,17 @@ import uuid
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
 
-from ..errors import ApiError, bad_request, conflict, not_found
+from ..errors import ApiError, conflict, not_found
 from ..extensions import db
 from ..models import Booking, Payment
-from . import booking_service, flutterwave_client, sms_service
+from . import booking_service, momo_client, sms_service
 
 log = logging.getLogger(__name__)
 
 
 def get_payment_client():
     """Separate function so tests can swap in a fake client."""
-    return flutterwave_client.get_client()
+    return momo_client.get_client()
 
 
 def _require_client():
@@ -43,7 +44,16 @@ def _require_client():
     return client
 
 
-def start(user, booking_id, phone, email=None):
+def provider_info():
+    """What the payment page needs to know about the MoMo set-up."""
+    cfg = current_app.config
+    return {
+        "currency": cfg["MOMO_CURRENCY"],
+        "sandbox": cfg["MOMO_TARGET_ENVIRONMENT"] == "sandbox",
+    }
+
+
+def start(user, booking_id, phone):
     """Start paying for the user's pending booking. Returns the Payment."""
     client = _require_client()
     booking_service.release_expired()
@@ -62,21 +72,12 @@ def start(user, booking_id, phone, email=None):
     if booking.status != "pending":
         raise conflict("This booking is already paid.", "already_paid")
 
-    # Flutterwave requires an email address for every charge.
-    email = email or user.email
-    if not email:
-        raise bad_request("Add an email address to pay with mobile money.",
-                          {"email": "Flutterwave needs an email address for the receipt."})
-    if not user.email:
-        user.email = email
-
     payment = Payment(
         booking_id=booking.booking_id,
         amount=booking.total_price,
-        method="momo",
+        method="mtn_momo",
         status="pending",
-        # Unique, and shows which booking it belongs to.
-        reference=f"etike-{booking.booking_id}-{uuid.uuid4().hex[:8]}",
+        reference=str(uuid.uuid4()),  # a new one for every request to pay
     )
     db.session.add(payment)
     try:
@@ -87,63 +88,65 @@ def start(user, booking_id, phone, email=None):
         raise conflict("A payment for this booking is already in progress.",
                        "payment_in_progress") from None
 
-    redirect_url = current_app.config.get("FLW_REDIRECT_URL")
     try:
-        payment.checkout_url = client.charge_rwanda_mobile_money(
-            tx_ref=payment.reference,
+        client.request_to_pay(
+            reference=payment.reference,
             amount=payment.amount,
-            phone=phone.lstrip("+"),
-            email=email,
-            fullname=user.full_name,
-            redirect_url=f"{redirect_url}?booking={booking.booking_id}" if redirect_url else None,
+            phone=phone,
+            external_id=booking.booking_id,
+            message=f"ETIKE booking {booking.booking_id}",
         )
-        db.session.commit()
-    except flutterwave_client.FlutterwaveError:
-        # The charge never started, so nothing was taken. Remove the payment
-        # so the passenger can try again while the seats are held.
+    except momo_client.MomoError:
+        # MoMo never accepted the request, so nothing was charged. Remove the
+        # payment so the passenger can try again while the seats are held.
         db.session.delete(payment)
         db.session.commit()
         raise ApiError(502, "payment_provider_error",
-                       "We could not start the payment. Please try again in a moment.") from None
+                       "We could not reach MoMo. Please try again in a moment.") from None
     return payment
 
 
 def check(payment):
-    """Ask Flutterwave about a pending payment and apply the answer."""
+    """Ask MoMo about a pending payment and apply the answer."""
     if payment.status != "pending":
         return payment
     client = _require_client()
     try:
-        transaction = client.verify_by_reference(payment.reference)
-    except flutterwave_client.FlutterwaveError:
+        answer = client.get_status(payment.reference)
+    except momo_client.MomoError:
         return payment  # keep it pending; the next check tries again
-    return settle(payment.payment_id, _outcome(payment, transaction))
+    outcome, reason = _outcome(payment, answer, current_app.config["MOMO_CURRENCY"])
+    return settle(payment.payment_id, outcome, reason)
 
 
-def _outcome(payment, transaction):
-    """"success", "failed" or "pending", after checking the details match."""
-    if not transaction:
-        return "pending"
-    status = str(transaction.get("status", "")).lower()
-    if status == "successful":
+def _outcome(payment, answer, currency):
+    """Turn MoMo's answer into ("success" | "failed" | "pending", reason)."""
+    status = str(answer.get("status", "")).upper()
+    if status == "SUCCESSFUL":
         # Never give seats for a payment that doesn't match what we asked for.
         try:
-            amount_ok = float(transaction.get("amount", 0)) >= payment.amount
+            amount_ok = float(answer.get("amount", 0)) == payment.amount
         except (TypeError, ValueError):
             amount_ok = False
-        if (transaction.get("tx_ref") == payment.reference
-                and transaction.get("currency") == "RWF" and amount_ok):
-            return "success"
-        log.error("Payment %s: Flutterwave details do not match (tx_ref %s, %s %s).",
-                  payment.payment_id, transaction.get("tx_ref"),
-                  transaction.get("amount"), transaction.get("currency"))
-        return "failed"
-    if status == "failed":
-        return "failed"
-    return "pending"
+        if (amount_ok and answer.get("currency") == currency
+                and str(answer.get("externalId")) == str(payment.booking_id)):
+            return "success", None
+        log.error("Payment %s: MoMo's details do not match ours (%s %s, externalId %s).",
+                  payment.payment_id, answer.get("amount"), answer.get("currency"),
+                  answer.get("externalId"))
+        return "failed", "DETAILS_MISMATCH"
+    if status in ("FAILED", "REJECTED", "EXPIRED", "TIMEOUT"):
+        # The reason is a word like APPROVAL_REJECTED, or {"code": ..., "message": ...}.
+        reason = answer.get("reason")
+        if isinstance(reason, dict):
+            reason = reason.get("code") or reason.get("message")
+        if not reason and status != "FAILED":
+            reason = status
+        return "failed", str(reason or "FAILED")[:60]
+    return "pending", None
 
 
-def settle(payment_id, outcome):
+def settle(payment_id, outcome, reason=None):
     """Record the outcome of a payment, exactly once."""
     if outcome not in ("success", "failed"):
         return db.session.get(Payment, payment_id)
@@ -160,8 +163,10 @@ def settle(payment_id, outcome):
         payment.status = outcome
         if outcome == "success":
             confirmed = booking_service.confirm(booking)
-        elif booking.status == "pending":
-            booking_service.release(booking)
+        else:
+            payment.failure_reason = reason
+            if booking.status == "pending":
+                booking_service.release(booking)
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -173,7 +178,13 @@ def settle(payment_id, outcome):
     return payment
 
 
-def find_by_reference(reference):
-    if not reference:
-        return None
-    return db.session.query(Payment).filter_by(reference=str(reference)).first()
+def find_for_callback(reference=None, external_id=None):
+    """Find the payment a MoMo callback is about: by our reference if it is
+    given, otherwise by the booking ID we sent as externalId."""
+    if reference:
+        payment = db.session.query(Payment).filter_by(reference=str(reference)).first()
+        if payment:
+            return payment
+    if external_id and str(external_id).isdigit():
+        return db.session.query(Payment).filter_by(booking_id=int(external_id)).first()
+    return None
