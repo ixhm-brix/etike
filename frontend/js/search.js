@@ -8,7 +8,9 @@
 
   date.min = ui.today();
   date.value = params.get("date") || ui.today();
-  if (params.get("type")) form.elements.type.value = params.get("type");
+  const busOn = (await api.features()).bus_booking;
+  const wanted = params.get("type");
+  if (wanted && (wanted !== "bus" || busOn)) form.elements.type.value = wanted;
 
   try {
     await ui.fillPlaces(origin, "Leaving from", params.get("origin") || "Kigali");

@@ -1031,6 +1031,280 @@ a {
 .countdown.is-urgent {
   color: var(--bad);
 }
+.cancel-note {
+  flex-basis: 100%;
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+}
+.link-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  color: inherit;
+  cursor: pointer;
+}
+.password-login {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--gray-200);
+}
+.password-login summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+/* Seat map */
+.seatmap-box {
+  display: grid;
+  gap: 0.75rem;
+}
+.seatmap-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.seatmap-legend {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8125rem;
+  color: var(--gray-700);
+}
+.seatmap-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.seat-key {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 4px;
+  border: 2px solid var(--black);
+  background: var(--white);
+}
+.seat-key.is-chosen {
+  background: var(--black);
+}
+.seat-key.is-taken {
+  border-color: var(--gray-200);
+  background: var(--gray-200);
+}
+.seatmap {
+  justify-self: center;
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.25rem 1.5rem;
+  border: 2px solid var(--gray-200);
+  border-radius: 2rem 2rem 1rem 1rem;
+  background: var(--gray-50);
+}
+.seatmap.is-bus {
+  border-radius: 1.25rem 1.25rem 0.75rem 0.75rem;
+}
+.seat-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.seat,
+.seat-gap {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+}
+.seat {
+  border: 2px solid var(--black);
+  border-radius: 0.6rem 0.6rem 0.4rem 0.4rem;
+  background: var(--white);
+  color: var(--black);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, transform 120ms ease-out;
+}
+.seat:hover:not(:disabled) {
+  background: var(--gray-100);
+}
+.seat:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.seat.is-chosen {
+  background: var(--black);
+  color: var(--white);
+}
+.seat.is-taken {
+  border-color: var(--gray-200);
+  background: var(--gray-200);
+  color: var(--gray-500);
+  cursor: not-allowed;
+}
+.seat.is-driver {
+  display: grid;
+  place-items: center;
+  border-color: var(--gray-200);
+  background: transparent;
+  color: var(--gray-500);
+  font-size: 0.625rem;
+  font-weight: 500;
+  cursor: default;
+}
+.seat:disabled.is-chosen {
+  cursor: default;
+}
+
+/* Car photos */
+.car-photos {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+.car-photos img {
+  flex: none;
+  width: 100%;
+  max-width: 28rem;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  scroll-snap-align: start;
+  background: var(--gray-100);
+}
+.car-photos img:only-child {
+  max-width: 100%;
+}
+.result-photo {
+  grid-column: 1 / -1;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+  background: var(--gray-100);
+}
+@media (min-width: 40rem) {
+  /* Wider screens: the photo as a thumbnail on the left of the details. */
+  .result.has-photo {
+    grid-template-columns: 9rem 1fr auto;
+    column-gap: 1.25rem;
+  }
+  .result.has-photo .result-photo {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    margin-bottom: 0;
+    align-self: stretch;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+  .result.has-photo .result-actions {
+    grid-column: 2 / -1;
+  }
+}
+.vehicle-photos {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.vehicle-photos figure {
+  position: relative;
+}
+.vehicle-photos img {
+  width: 6.5rem;
+  height: 4.9rem;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+.vehicle-photos button {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+}
+.file-label input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.file-label:focus-within {
+  outline: 3px solid var(--black);
+  outline-offset: 2px;
+}
+
+/* Ticket */
+.ticket-card {
+  margin-top: 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--black);
+  overflow: hidden;
+}
+.ticket-head {
+  background: var(--black);
+  color: var(--white);
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+.ticket-head strong {
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+.ticket-body {
+  padding: 1.25rem;
+  display: grid;
+  gap: 1.25rem;
+}
+.ticket-qr {
+  justify-self: center;
+  width: 13rem;
+  max-width: 100%;
+}
+.ticket-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ticket-card .ticket {
+  margin: 0;
+  border-style: solid;
+}
+
+/* Ticket check (what a scanner sees) */
+.verdict {
+  margin-top: 1.5rem;
+  padding: 2rem 1.5rem;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  display: grid;
+  gap: 0.5rem;
+}
+.verdict strong {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.verdict.is-valid {
+  background: #0a7d32;
+  color: var(--white);
+}
+.verdict.is-invalid {
+  background: var(--bad);
+  color: var(--white);
+}
+
+/* Bus booking is a future phase: bus-only things show only when the API's
+   /api/config says it is on (api.js then adds .has-bus to <html>). */
+html:not(.has-bus) [data-feature="bus"] {
+  display: none !important;
+}
+.coming-soon {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+}
 .sandbox-note {
   margin-top: 0.75rem;
   font-size: 0.875rem;

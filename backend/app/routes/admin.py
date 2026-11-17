@@ -1,4 +1,4 @@
-"""Admin tools: approve or reject drivers, verify bus companies."""
+"""Admin tools: approve or reject drivers, verify bus companies, send refunds."""
 
 from flask import Blueprint, jsonify, request
 
@@ -6,7 +6,8 @@ from .. import validation as v
 from ..auth import role_required
 from ..errors import not_found
 from ..extensions import db
-from ..models import BusCompany, Driver
+from ..features import require_bus
+from ..models import Booking, BusCompany, Driver, Payment
 from ..models.user import utcnow
 
 admin_bp = Blueprint("admin", __name__)
@@ -64,6 +65,7 @@ def reject_driver(driver_id):
 @admin_bp.get("/admin/companies")
 @role_required("admin")
 def list_companies():
+    require_bus()
     companies = db.session.query(BusCompany).order_by(BusCompany.is_verified, BusCompany.name).all()
     return jsonify({"companies": [c.admin_dict() for c in companies]})
 
@@ -71,12 +73,58 @@ def list_companies():
 @admin_bp.post("/admin/companies/<int:company_id>/verify")
 @role_required("admin")
 def verify_company(company_id):
+    require_bus()
     company = db.session.get(BusCompany, company_id)
     if company is None:
         raise not_found("Bus company not found.")
     company.is_verified = True
     db.session.commit()
     return jsonify({"company": company.admin_dict()})
+
+
+def _refund_dict(payment):
+    booking = payment.booking
+    return {
+        "payment_id": payment.payment_id,
+        "booking_id": booking.booking_id,
+        "amount": payment.amount,
+        "refund_status": payment.refund_status,
+        "refunded_at": payment.refunded_at.isoformat() if payment.refunded_at else None,
+        "passenger_name": booking.user.full_name,
+        "passenger_phone": booking.user.phone,
+        "trip": f"{booking.trip.route.origin} to {booking.trip.route.destination}",
+        "departure_time": booking.trip.departure_time.isoformat(timespec="minutes"),
+        "operator": booking.trip.company.name,
+    }
+
+
+@admin_bp.get("/admin/refunds")
+@role_required("admin")
+def list_refunds():
+    """Payments for cancelled bookings that are owed back, oldest first."""
+    status = v.choice(request.args.get("status", "due"), "status", ("due", "refunded"))
+    payments = (
+        db.session.query(Payment)
+        .join(Booking, Payment.booking_id == Booking.booking_id)
+        .filter(Payment.refund_status == status)
+        .order_by(Payment.updated_at)
+        .all()
+    )
+    return jsonify({"refunds": [_refund_dict(p) for p in payments]})
+
+
+@admin_bp.post("/admin/refunds/<int:payment_id>/done")
+@role_required("admin")
+def mark_refunded(payment_id):
+    """Record that the money was sent back to the passenger's MoMo."""
+    payment = db.session.get(Payment, payment_id, with_for_update=True)
+    if payment is None or payment.refund_status is None:
+        raise not_found("No refund is due for this payment.")
+    if payment.refund_status == "due":
+        payment.refund_status = "refunded"
+        payment.refunded_at = utcnow()
+        db.session.commit()
+    return jsonify({"refund": _refund_dict(payment)})
 
 
 def _get_driver(driver_id):

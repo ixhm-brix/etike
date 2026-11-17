@@ -49,7 +49,7 @@ def test_search_other_date_is_empty(client, make_trip):
     assert response.get_json()["trips"] == []
 
 
-def test_search_validation(client):
+def test_search_validation(client, bus):
     missing = client.get("/api/trips?origin=Kigali")
     unknown = client.get("/api/trips?origin=Kigali&destination=Atlantis")
     same = client.get("/api/trips?origin=Huye&destination=Huye")

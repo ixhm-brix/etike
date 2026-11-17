@@ -159,11 +159,13 @@
       fillSummary(document.getElementById("receipt"), [
         ["Booking number", `#${booking.booking_id}`],
         ["With", booking.operator],
-        ["Seats", String(booking.seats_booked)],
+        [booking.seat_numbers.length > 1 ? "Seats" : "Seat",
+          booking.seat_numbers.join(", ") || String(booking.seats_booked)],
         ["Paid", ui.money(booking.total_price), true],
       ]);
       ui.say(msg, "Payment received. Your booking is confirmed.", "info");
-      link("/bookings.html", "See your ticket in My bookings");
+      link(`/ticket.html?booking=${booking.booking_id}`, "Show my ticket");
+      link("/bookings.html", "My bookings");
     } else {
       const [heading, text] = ENDINGS[outcome];
       title.textContent = heading;

@@ -4,3 +4,5 @@ __pycache__/
 .ruff_cache/
 .venv/
 .env
+local_test_data.py
+

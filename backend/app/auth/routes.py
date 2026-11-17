@@ -1,4 +1,10 @@
-from flask import Blueprint, jsonify
+import hashlib
+import hmac
+import logging
+import secrets
+from datetime import timedelta
+
+from flask import Blueprint, current_app, jsonify
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -6,13 +12,23 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from .. import validation as v
 from ..errors import ApiError, bad_request, conflict
 from ..extensions import db
-from ..models import Driver, User
+from ..models import Driver, LoginCode, User
+from ..models.user import utcnow
+from ..services import sms_service
 from .decorators import current_user, role_required
+
+log = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__)
 
 MIN_PASSWORD = 8
 MAX_PASSWORD = 128
+
+# Logging in with a code sent by SMS.
+CODE_MINUTES = 10
+MAX_ATTEMPTS = 5
+RESEND_SECONDS = 60
+CODES_PER_HOUR = 5
 
 
 @auth_bp.post("/register")
@@ -74,12 +90,115 @@ def login():
     user = db.session.query(User).filter_by(phone=phone).first() if phone else None
     # Same message whether the phone or the password is wrong, so nobody can
     # use this form to find out which phone numbers have accounts.
-    if not user or not isinstance(password, str) or not check_password_hash(
-        user.password_hash, password
-    ):
+    if (not user or not user.password_hash or not isinstance(password, str)
+            or not check_password_hash(user.password_hash, password)):
         raise ApiError(401, "invalid_credentials", "Phone number or password is incorrect.")
 
     return jsonify({"user": user.to_dict(), "access_token": _token_for(user)})
+
+
+@auth_bp.post("/code")
+def send_code():
+    """Text a one-time login code to a phone number.
+
+    Works for new and existing numbers alike, so it never reveals whether a
+    number has an account.
+    """
+    data = v.json_body()
+    phone = v.phone(data.get("phone"))
+    cfg = current_app.config
+    sms_ready = bool(cfg.get("AT_USERNAME") and cfg.get("AT_API_KEY"))
+    show_code = not sms_ready and cfg.get("SHOW_LOGIN_CODES")
+    if not sms_ready and not show_code:
+        raise ApiError(503, "code_login_unavailable",
+                       "Logging in with a text message isn't available right now. "
+                       "Use your password instead.")
+
+    now = utcnow()
+    recent = (db.session.query(LoginCode)
+              .filter(LoginCode.phone == phone, LoginCode.created_at > now - timedelta(hours=1))
+              .order_by(LoginCode.created_at.desc()).all())
+    if recent and _as_utc(recent[0].created_at) > now - timedelta(seconds=RESEND_SECONDS):
+        raise ApiError(429, "too_many_codes", "Wait a minute before asking for another code.")
+    if len(recent) >= CODES_PER_HOUR:
+        raise ApiError(429, "too_many_codes",
+                       "Too many codes for this number. Try again in an hour.")
+
+    code = f"{secrets.randbelow(10**6):06d}"
+    # Only the newest code works.
+    for old in recent:
+        if old.used_at is None:
+            old.used_at = now
+    entry = LoginCode(phone=phone, code_hash=_hash_code(phone, code),
+                      expires_at=now + timedelta(minutes=CODE_MINUTES))
+    db.session.add(entry)
+    db.session.commit()
+
+    body = {"sent": True, "expires_in": CODE_MINUTES * 60}
+    if show_code:
+        log.info("Login code for %s shown on the page (no SMS configured).", phone[-3:])
+        body["dev_code"] = code
+    elif not sms_service.send(
+        phone, f"Your ETIKE code is {code}. It expires in {CODE_MINUTES} minutes. "
+               "Don't share it with anyone."
+    ):
+        db.session.delete(entry)
+        db.session.commit()
+        raise ApiError(502, "sms_failed", "We couldn't send the text message. Try again.")
+    return jsonify(body)
+
+
+@auth_bp.post("/verify")
+def verify_code():
+    """Log in with the code. A new number becomes a passenger account; it
+    only needs a name, sent along with the code."""
+    data = v.json_body()
+    phone = v.phone(data.get("phone"))
+    code = "".join(str(data.get("code") or "").split())
+    wrong = ApiError(400, "invalid_code", "This code is wrong or has expired. Ask for a new one.",
+                     {"code": "Wrong or expired code."})
+
+    entry = (db.session.query(LoginCode)
+             .filter(LoginCode.phone == phone, LoginCode.used_at.is_(None),
+                     LoginCode.expires_at > utcnow())
+             .order_by(LoginCode.created_at.desc())
+             .with_for_update().first())
+    if entry is None or entry.attempts >= MAX_ATTEMPTS:
+        raise wrong
+    if not hmac.compare_digest(entry.code_hash, _hash_code(phone, code)):
+        entry.attempts += 1
+        db.session.commit()
+        raise wrong
+
+    user = db.session.query(User).filter_by(phone=phone).first()
+    new_user = user is None
+    if new_user:
+        # The code stays valid, so the page can ask for the name and resend.
+        if not str(data.get("full_name") or "").strip():
+            raise ApiError(400, "name_required", "Welcome! What's your name?",
+                           {"full_name": "Your name, as on your ID."})
+        user = User(full_name=v.text(data, "full_name", min_len=2, max_len=100),
+                    phone=phone, role="passenger")
+        db.session.add(user)
+
+    entry.used_at = utcnow()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise conflict("This phone number was just registered. Try again.") from None
+    body = {"user": user.to_dict(), "access_token": _token_for(user), "new_user": new_user}
+    return jsonify(body), 201 if new_user else 200
+
+
+def _hash_code(phone, code):
+    key = current_app.config["SECRET_KEY"].encode()
+    return hmac.new(key, f"{phone}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
+def _as_utc(dt):
+    # SQLite gives times back without a time zone; they are stored as UTC.
+    return dt if dt.tzinfo else dt.replace(tzinfo=utcnow().tzinfo)
 
 
 @auth_bp.get("/me")

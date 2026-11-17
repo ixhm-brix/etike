@@ -1,17 +1,33 @@
 """Driver actions: register vehicles and post ride offers."""
 
-from flask import Blueprint, jsonify
+import os
+import secrets
+
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from .. import validation as v
 from ..auth import current_user, role_required
 from ..errors import ApiError, bad_request, conflict, not_found
 from ..extensions import db
-from ..models import RideOffer, Route, Vehicle
+from ..models import RideOffer, Route, Vehicle, VehiclePhoto
 
 drivers_bp = Blueprint("drivers", __name__)
 
 MAX_VEHICLE_SEATS = 30  # minibuses included; big buses belong to bus companies
+MAX_PHOTOS = 3
+MAX_PHOTO_BYTES = 3 * 1024 * 1024
+
+# Photos are recognised by their first bytes, never by the file name the
+# browser sends, so a script renamed to .jpg is refused.
+def _image_type(head):
+    if head.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "webp"
+    return None
 
 
 @drivers_bp.post("/drivers/vehicles")
@@ -41,6 +57,58 @@ def add_vehicle():
 def my_vehicles():
     vehicles = current_user().driver.vehicles
     return jsonify({"vehicles": [x.to_dict() for x in vehicles]})
+
+
+@drivers_bp.post("/drivers/vehicles/<int:vehicle_id>/photos")
+@role_required("driver")
+def add_photo(vehicle_id):
+    vehicle = _own_vehicle(vehicle_id)
+    if len(vehicle.photos) >= MAX_PHOTOS:
+        raise conflict(f"A car can have up to {MAX_PHOTOS} photos. Remove one first.",
+                       "too_many_photos")
+    upload = request.files.get("photo")
+    if upload is None:
+        raise bad_request("Choose a photo to upload.", {"photo": "Choose a photo."})
+    data = upload.read(MAX_PHOTO_BYTES + 1)
+    if len(data) > MAX_PHOTO_BYTES:
+        raise bad_request("The photo is too big. Use one under 3 MB.",
+                          {"photo": "Must be under 3 MB."})
+    kind = _image_type(data[:16])
+    if kind is None:
+        raise bad_request("Upload a JPEG, PNG or WebP photo.",
+                          {"photo": "Must be a JPEG, PNG or WebP image."})
+
+    folder = current_app.config["UPLOAD_DIR"]
+    os.makedirs(folder, exist_ok=True)
+    filename = f"{secrets.token_hex(16)}.{kind}"
+    with open(os.path.join(folder, filename), "wb") as f:
+        f.write(data)
+    photo = VehiclePhoto(vehicle=vehicle, filename=filename)
+    db.session.add(photo)
+    db.session.commit()
+    return jsonify({"photo": photo.to_dict(), "vehicle": vehicle.to_dict()}), 201
+
+
+@drivers_bp.delete("/drivers/vehicles/<int:vehicle_id>/photos/<int:photo_id>")
+@role_required("driver")
+def delete_photo(vehicle_id, photo_id):
+    vehicle = _own_vehicle(vehicle_id)
+    photo = db.session.get(VehiclePhoto, photo_id)
+    if photo is None or photo.vehicle_id != vehicle.vehicle_id:
+        raise not_found("Photo not found.")
+    path = os.path.join(current_app.config["UPLOAD_DIR"], photo.filename)
+    db.session.delete(photo)
+    db.session.commit()
+    if os.path.exists(path):
+        os.remove(path)
+    return jsonify({"vehicle": vehicle.to_dict()})
+
+
+def _own_vehicle(vehicle_id):
+    vehicle = db.session.get(Vehicle, vehicle_id)
+    if vehicle is None or vehicle.driver_id != current_user().driver.driver_id:
+        raise not_found("Vehicle not found in your account.")
+    return vehicle
 
 
 @drivers_bp.post("/rides")

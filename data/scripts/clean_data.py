@@ -19,6 +19,7 @@ See data/README.md for the columns.
 """
 
 import csv
+import os
 import re
 import sys
 from datetime import date, datetime
@@ -52,14 +53,25 @@ class RowError(ValueError):
     pass
 
 
+def bus_enabled():
+    # Same switch as the API (backend/app/config.py).
+    return os.environ.get("FEATURE_BUS_BOOKING", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def main():
     PROCESSED.mkdir(exist_ok=True)
     problems = []
 
     write_districts()
 
-    companies = clean_file("bus_companies.csv", COMPANY_COLUMNS, clean_company, problems)
-    trips = clean_file("bus_trips.csv", TRIP_COLUMNS, clean_trip, problems)
+    if bus_enabled():
+        companies = clean_file("bus_companies.csv", COMPANY_COLUMNS, clean_company, problems)
+        trips = clean_file("bus_trips.csv", TRIP_COLUMNS, clean_trip, problems)
+    else:
+        # Bus booking is a future phase; its collection and cleaning are paused.
+        print("Skipped bus_companies.csv and bus_trips.csv: bus booking is a future phase and "
+              "FEATURE_BUS_BOOKING is off.")
+        companies = trips = None
     routes = clean_file("routes.csv", ROUTE_COLUMNS, clean_route, problems)
 
     if companies is not None:

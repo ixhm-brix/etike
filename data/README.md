@@ -1,6 +1,8 @@
 # Data
 
-ETIKE uses **only real, collected data**: routes between districts, departure times, fares and bus companies. There is no dummy, fake or sample data anywhere in this project, in code, tests, seeds or the frontend.
+ETIKE uses **only real, collected data**: routes between districts, departure times, fares and bus companies.
+
+> **Bus data collection is paused.** Bus booking moved to a future phase (see the main README's Roadmap), because bus companies would first need an operator system. The bus formats below and the scripts' bus loaders are kept for that phase; while `FEATURE_BUS_BOOKING` is off, `clean_data.py` and `load_data.py` skip `bus_companies.csv` and `bus_trips.csv` with a message. Rides are posted by drivers on the website, so they need no collected data. There is no dummy, fake or sample data anywhere in this project, in code, tests, seeds or the frontend.
 
 ## How data gets here
 

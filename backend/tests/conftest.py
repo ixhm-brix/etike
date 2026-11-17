@@ -84,8 +84,18 @@ def passenger(client):
 
 
 @pytest.fixture()
-def make_trip(app):
-    """make_trip(seats=2, price=5000, hours_ahead=24, verified=True) -> trip_id"""
+def bus(app):
+    """Switch bus booking on (it is a future phase, off by default).
+
+    Bus tests use this, so the bus code stays tested while it is hidden."""
+    app.config["FEATURE_BUS_BOOKING"] = True
+
+
+@pytest.fixture()
+def make_trip(app, bus):
+    """make_trip(seats=2, price=5000, hours_ahead=24, verified=True) -> trip_id
+
+    Creating a bus trip makes a bus test, so this switches bus booking on."""
 
     def make(seats=2, price=5000, hours_ahead=24, origin="Kigali", destination="Huye",
              verified=True):

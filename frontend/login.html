@@ -28,20 +28,48 @@
 
   <main id="main" class="page wrap page-narrow">
     <h1>Log in</h1>
-    <p class="page-sub">New to ETIKE? <a href="/register.html">Create an account</a></p>
+    <p class="page-sub">No account or password needed. We'll text a code to your phone.</p>
 
-    <form class="form" id="login" novalidate>
+    <form class="form" id="code-login" novalidate>
       <label class="field">
         <span>Phone number</span>
         <input type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="078 123 4567" required>
       </label>
-      <label class="field">
-        <span>Password</span>
-        <input type="password" name="password" autocomplete="current-password" required>
+      <label class="field" id="code-field" hidden>
+        <span>6-digit code from the text message</span>
+        <input type="text" name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*">
       </label>
-      <button class="btn-black" type="submit">Log in</button>
+      <label class="field" id="name-field" hidden>
+        <span>Your name</span>
+        <input type="text" name="full_name" autocomplete="name">
+      </label>
+      <p class="sandbox-note" id="dev-code" hidden></p>
+      <button class="btn-black" type="submit">Send me a code</button>
+      <p class="form-foot" id="code-links" hidden>
+        <button class="link-button" type="button" id="resend">Send a new code</button>
+        ·
+        <button class="link-button" type="button" id="change-number">Use another number</button>
+      </p>
       <p class="trip-msg" id="msg" role="alert"></p>
     </form>
+
+    <details class="password-login">
+      <summary>Log in with a password instead</summary>
+      <form class="form" id="login" novalidate>
+        <label class="field">
+          <span>Phone number</span>
+          <input type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="078 123 4567" required>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn-gray btn-sm" type="submit">Log in with password</button>
+        <p class="trip-msg" id="password-msg" role="alert"></p>
+      </form>
+    </details>
+
+    <p class="form-foot">Driving between districts? <a href="/register.html?role=driver">Sign up as a driver</a></p>
   </main>
 
   <footer class="footer">
@@ -49,13 +77,13 @@
       <div class="footer-top">
         <div class="footer-brand">
           <a class="brand" href="/">ETIKE</a>
-          <p>Buses, private cars and shared seats between Rwanda's districts.</p>
+          <p>Private cars and shared seats between Rwanda's districts.</p>
         </div>
         <nav class="footer-cols" aria-label="Footer">
           <div>
             <h2>Travel</h2>
             <ul>
-              <li><a href="/search.html?type=bus">Bus tickets</a></li>
+              <li data-feature="bus"><a href="/search.html?type=bus">Bus tickets</a></li>
               <li><a href="/search.html?type=private">Private car</a></li>
               <li><a href="/search.html?type=shared">Shared seat</a></li>
             </ul>

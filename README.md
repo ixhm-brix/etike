@@ -1,8 +1,22 @@
 # ETIKE Intercity Travel Platform
 
-ETIKE is a website for travelling between districts in Rwanda. In one place, people can book bus tickets across several bus companies, book a private car with the price shown up front, or book a seat in a shared private car already going their way. Users are passengers, drivers, bus company staff and admins.
+ETIKE is a website for travelling between districts in Rwanda. Drivers post the trips they are making; passengers book a **private car** (the whole car, one price shown up front) or a **shared seat** in a car already going their way, and pay the driver during or after the ride. Users are passengers, drivers and admins.
+
+**Current scope: private and shared rides between districts.** Bus booking is a future phase (see [Roadmap](#roadmap)); its code is kept but switched off with `FEATURE_BUS_BOOKING`.
 
 It is a BSc Software Engineering project by Team 3 at African Leadership University (ALU), Kigali. The project uses **real collected data only** (see [data/](data/README.md)). Car rental is out of scope.
+
+## Roadmap
+
+**Bus booking (future phase).** Bus companies in Rwanda don't have booking software or open APIs, so supporting them properly means building a separate operator product: an operator portal for fleets and schedules, ticket scanning at boarding, and their payouts. The bus parts already built stay in the code, hidden behind `FEATURE_BUS_BOOKING` (off by default) and still covered by tests:
+
+- bus trips, search and the bus seat map;
+- MoMo payment before travel, with the 15-minute seat hold, and refunds for cancelled paid tickets;
+- QR tickets and the ticket check page;
+- verifying bus companies (admin);
+- loading collected bus timetables (`data/scripts/`).
+
+To try them locally, set `FEATURE_BUS_BOOKING=true` in `.env` and restart. Bus data collection is paused until this phase starts (see [data/README.md](data/README.md)).
 
 ## Tech stack
 
@@ -76,6 +90,14 @@ docker compose exec api python /data/scripts/load_data.py    # loads it; safe to
 
 Missing files are reported and skipped. The scripts never make up data to fill a gap.
 
+## Logging in
+
+Passengers don't create an account or a password. They type their phone number, get a 6-digit code by SMS, and type it in; a new number is asked for a name once, and becomes a passenger account. A code works once, for 10 minutes, and stops after 5 wrong tries; a number can ask for a new code once a minute and 5 times an hour.
+
+- **Codes are sent with Africa's Talking** (see "SMS" below).
+- **On a laptop without SMS keys** (`FLASK_ENV=development`), the login page shows the code instead, so you can still log in. On a server without SMS keys, code login answers 503 and people use a password.
+- **Passwords still work:** admins, and drivers who signed up with one, can use "Log in with a password instead". Drivers still sign up on the driver form, because their licence is checked before they can post rides.
+
 ## Admin accounts
 
 There are no built-in admin accounts or passwords. Create the first admin from the command line; it asks for a name, phone number and password (or reads `ADMIN_NAME`, `ADMIN_PHONE` and `ADMIN_PASSWORD`):
@@ -84,18 +106,31 @@ There are no built-in admin accounts or passwords. Create the first admin from t
 docker compose exec api flask --app wsgi create-admin
 ```
 
-Admins log in on the website like anyone else and land on **Drivers** (approve or reject drivers after checking their licence) and **Companies** (verify bus companies). Only approved drivers' rides and verified companies' trips appear in search or can be booked. A driver can also be approved from the command line: `flask --app wsgi approve-driver 0781234567`.
+Admins log in on the website like anyone else and land on **Drivers** (approve or reject drivers after checking their licence), **Companies** (verify bus companies) and **Refunds** (send money back for cancelled paid tickets). Only approved drivers' rides and verified companies' trips appear in search or can be booked. A driver can also be approved from the command line: `flask --app wsgi approve-driver 0781234567`.
 
-## Booking and payment flow
+## Booking, payment and cancelling
+
+**Shared and private rides** (current scope) are paid to the driver, in cash or by MoMo, during or after the ride. Nothing is paid on the website: the booking is **confirmed** straight away, and both the passenger and the driver get an SMS with the amount. Shared rides take a number of seats; a private ride takes the whole car.
+
+**Bus tickets** (future phase, only with `FEATURE_BUS_BOOKING=true`) are paid before travel:
 
 1. A passenger books: the booking is **pending** and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default).
-2. They pay with MTN MoMo: a request is sent to their phone and they approve it with their MoMo PIN. Success makes the booking **confirmed** and sends an SMS to the passenger (and to the driver for a ride).
+2. They pay with MTN MoMo: a request is sent to their phone and they approve it with their MoMo PIN. Success makes the booking **confirmed** and sends them an SMS.
 3. A failed or declined payment, or a hold that runs out, makes it **cancelled** and returns the seats. Expired holds are released before every search and booking, and by `flask --app wsgi expire-bookings` (run it from cron on the server, see [docs/deployment.md](docs/deployment.md)).
-4. After a shared or private ride has left, the passenger can rate the driver once, from 1 to 5.
 
-Paid bookings can't be cancelled online yet, because refunds are not built.
+**Cancelling.** A confirmed booking can be cancelled until `CANCEL_CUTOFF_HOURS` (2 by default) before departure; an unpaid one at any time. The seats go back on sale. Cancelling a paid bus ticket marks its payment as a **refund due**: admins see it under **Refunds**, send the money back to the passenger's MoMo number, and mark it as sent. Sending refunds automatically would need MoMo's Disbursements product and is not built.
+
+After a shared or private ride has left, the passenger can rate the driver once, from 1 to 5.
+
+**Seats.** On buses (future phase), passengers choose their seats on a seat map drawn as rows of 2 + aisle + 2. Shared rides just take a number of seats. The map is drawn from the number of seats, so it is a close guide, not each model's exact layout. A private ride takes every seat. Each seat is held in `booking_seats`, whose unique constraints make it impossible for two bookings to hold the same seat.
+
+**Tickets.** Every confirmed booking has a ticket page with a QR code (made for bus boarding; rides have one too). Scanning it opens `/verify.html`, which says **Valid** or **Not valid** (cancelled, unpaid or already left) and shows the trip, seats and the passenger's first name and initial. The QR code holds a signed link, so it can't be forged, and validity is checked live, so a cancelled ticket stops working. The link uses the address the page was opened with: to scan with a phone on the same Wi-Fi, open the site on the laptop by its network address (for example `http://192.168.1.20`), not `localhost`.
+
+**Car photos.** Drivers add up to 3 photos per car on the driver page (JPEG, PNG or WebP, under 3 MB; the server checks the file's content, not its name). Passengers see them on shared and private ride results and on the booking page. Files live in the `uploads` Docker volume and Nginx serves them at `/uploads/`.
 
 ## Payments with MTN MoMo (sandbox)
+
+Only bus tickets are paid on the website, so MoMo payments are part of the bus phase: with `FEATURE_BUS_BOOKING` off they are not used. The integration is kept and tested.
 
 Payments use the MTN MoMo Collections API ("request to pay"): the passenger gets a prompt on their phone and approves with their MoMo PIN.
 
@@ -138,21 +173,31 @@ All responses are JSON. Errors always look like `{"error": {"code": "...", "mess
 | `GET /api/health` | anyone | API and database status |
 | `POST /api/auth/register` | anyone | Create a passenger or driver account (`full_name`, `phone`, `password`, `role`, plus `license_number` for drivers). Returns a token |
 | `POST /api/auth/login` | anyone | `phone` and `password`. Returns a token |
+| `POST /api/auth/code` | anyone | Text a 6-digit login code to `phone` |
+| `POST /api/auth/verify` | anyone | Log in with `phone` and `code` (and `full_name` for a new number, which becomes a passenger). Returns a token |
 | `GET /api/auth/me` | logged in | The current user |
+| `GET /api/config` | anyone | Which features are switched on, e.g. `{"features": {"bus_booking": false}}` |
 | `GET /api/places` | anyone | Places you can travel between |
 | `GET /api/routes` | anyone | Routes in the database |
 | `GET /api/trips?origin=&destination=&date=` | anyone | Bus trips with seats left |
 | `GET /api/trips/<id>` | anyone | One bus trip |
+| `GET /api/trips/<id>/seats` | anyone | Seat map and taken seats of a bus trip |
 | `GET /api/rides?origin=&destination=&date=&type=` | anyone | Open ride offers (`type` is `shared` or `private`) |
 | `GET /api/rides/<id>` | anyone | One ride offer |
+| `GET /api/rides/<id>/seats` | anyone | Seat map and taken seats of a ride |
 | `GET /api/drivers/vehicles` | driver | My vehicles |
 | `POST /api/drivers/vehicles` | driver | Add a vehicle (`plate_number`, `model`, `seats`) |
+| `POST /api/drivers/vehicles/<id>/photos` | driver | Upload a car photo (form field `photo`) |
+| `DELETE /api/drivers/vehicles/<id>/photos/<photo_id>` | driver | Remove a car photo |
 | `POST /api/rides` | approved driver | Post a ride (`vehicle_id`, `origin`, `destination`, `ride_type`, `departure_time`, `price`, `seats_available`) |
-| `POST /api/bookings` | passenger | Book (`trip_id` or `offer_id`, and `seats`). Starts as `pending`, seats held. The price is worked out by the server |
+| `POST /api/bookings` | passenger | Book (`trip_id` or `offer_id`, and `seat_numbers` chosen on the map, or `seats` for the lowest free ones). A bus booking starts `pending` with its seats held; a ride is `confirmed` at once. The price is worked out by the server |
 | `GET /api/bookings/mine` | logged in | My bookings |
 | `GET /api/bookings/<id>` | logged in | One of my bookings |
-| `POST /api/bookings/<id>/cancel` | logged in | Cancel my unpaid booking and free its seats |
-| `POST /api/payments` | passenger | Send a MoMo request to pay for a pending booking (`booking_id`, optional MTN `phone`). The amount comes from the booking |
+| `GET /api/bookings/<id>/ticket` | logged in | My confirmed booking's ticket and its check link |
+| `GET /api/bookings/<id>/ticket/qr` | logged in | The ticket's QR code (SVG) |
+| `GET /api/tickets/verify?t=` | anyone | Is this ticket valid right now? (what scanning the QR code shows) |
+| `POST /api/bookings/<id>/cancel` | logged in | Cancel my booking and free its seats. Confirmed bookings only until the cut-off; a paid ticket becomes a refund due |
+| `POST /api/payments` | passenger | Send a MoMo request to pay for a pending bus booking (`booking_id`, optional MTN `phone`). The amount comes from the booking |
 | `GET /api/payments/<booking_id>/status` | logged in | Ask MoMo for the payment's status and update the booking |
 | `POST /api/payments/callback` | MTN MoMo | Callback (POST or PUT). The status is always re-checked with MoMo; safe to receive twice |
 | `POST /api/ratings` | passenger | Rate a driver (`booking_id`, `score` 1 to 5, optional `comment`) after a confirmed ride |
@@ -162,6 +207,8 @@ All responses are JSON. Errors always look like `{"error": {"code": "...", "mess
 | `POST /api/admin/drivers/<id>/reject` | admin | Reject a driver (their rides leave search) |
 | `GET /api/admin/companies` | admin | All bus companies |
 | `POST /api/admin/companies/<id>/verify` | admin | Verify a company (its trips appear in search) |
+| `GET /api/admin/refunds?status=due` | admin | Refunds owed for cancelled paid tickets (`due` or `refunded`) |
+| `POST /api/admin/refunds/<payment_id>/done` | admin | Record that a refund was sent |
 
 Dates and times are Rwanda local time, written like `2026-12-24` and `2026-12-24T07:30`.
 
@@ -177,6 +224,9 @@ Dates and times are Rwanda local time, written like `2026-12-24` and `2026-12-24
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | db | Credentials for the Postgres container |
 | `GUNICORN_WORKERS` | api | Worker processes in production (default 3) |
 | `BOOKING_HOLD_MINUTES` | api | How long an unpaid booking holds its seats (default 15) |
+| `UPLOAD_DIR` | api | Where car photos are saved (default `/uploads`, a Docker volume Nginx also serves) |
+| `FEATURE_BUS_BOOKING` | api | `true` switches on bus booking, a future phase (default off: bus endpoints answer 404, bus bookings 400, and the website hides bus options) |
+| `CANCEL_CUTOFF_HOURS` | api | A confirmed booking can be cancelled until this many hours before departure (default 2) |
 | `CORS_ORIGINS` | api | Other sites allowed to call the API from a browser, comma separated. Empty by default (same-origin only) |
 | `MOMO_BASE_URL` | api | MoMo API address (default: the global sandbox, `https://sandbox.momodeveloper.mtn.com`) |
 | `MOMO_TARGET_ENVIRONMENT` | api | `sandbox` for testing (default), `mtnrwanda` in production |

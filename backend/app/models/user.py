@@ -19,7 +19,8 @@ class User(db.Model):
     full_name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(16), nullable=False, unique=True)
     email = db.Column(db.String(255))
-    password_hash = db.Column(db.String(255), nullable=False)
+    # Empty for people who only ever log in with an SMS code.
+    password_hash = db.Column(db.String(255))
     role = db.Column(db.String(16), nullable=False, default="passenger")
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
@@ -84,6 +85,8 @@ class Vehicle(db.Model):
     seats = db.Column(db.Integer, nullable=False)  # passenger seats, driver not counted
 
     driver = db.relationship("Driver", back_populates="vehicles")
+    photos = db.relationship("VehiclePhoto", back_populates="vehicle",
+                             order_by="VehiclePhoto.photo_id", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -91,4 +94,23 @@ class Vehicle(db.Model):
             "plate_number": self.plate_number,
             "model": self.model,
             "seats": self.seats,
+            "photos": [p.to_dict() for p in self.photos],
         }
+
+
+class VehiclePhoto(db.Model):
+    """A photo of a driver's car, shown to passengers. The file lives in
+    UPLOAD_DIR under a random name; Nginx serves it at /uploads/<filename>."""
+
+    __tablename__ = "vehicle_photos"
+
+    photo_id = db.Column(db.Integer, primary_key=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey("vehicles.vehicle_id"), nullable=False,
+                           index=True)
+    filename = db.Column(db.String(64), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    vehicle = db.relationship("Vehicle", back_populates="photos")
+
+    def to_dict(self):
+        return {"photo_id": self.photo_id, "url": f"/uploads/{self.filename}"}

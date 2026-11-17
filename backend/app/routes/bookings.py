@@ -4,6 +4,7 @@ from .. import validation as v
 from ..auth import current_user, role_required
 from ..errors import not_found
 from ..extensions import db
+from ..features import reject_bus_booking
 from ..models import Booking
 from ..services import booking_service
 
@@ -16,9 +17,12 @@ def create_booking():
     data = v.json_body()
     # Any price the client sends is ignored; the service works it out.
     trip_id = v.integer(data, "trip_id", minimum=1) if data.get("trip_id") is not None else None
+    if trip_id is not None or data.get("booking_type") == "bus":
+        reject_bus_booking()
     offer_id = v.integer(data, "offer_id", minimum=1) if data.get("offer_id") is not None else None
     booking = booking_service.book(
-        current_user(), trip_id=trip_id, offer_id=offer_id, seats=data.get("seats", 1)
+        current_user(), trip_id=trip_id, offer_id=offer_id, seats=data.get("seats", 1),
+        seat_numbers=data.get("seat_numbers"),
     )
     return jsonify({"booking": booking.to_dict()}), 201
 

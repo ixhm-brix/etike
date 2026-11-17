@@ -52,25 +52,51 @@ def send(phone, message):
         return False
 
 
-def booking_confirmed(booking):
-    """Tell the passenger (and the driver, for a ride) that a booking is paid."""
+def _describe(booking):
     target = booking.trip or booking.offer
     when = target.departure_time.strftime("%a %d %b %H:%M")
     route = f"{target.route.origin} to {target.route.destination}"
     seats = f"{booking.seats_booked} seat{'s' if booking.seats_booked > 1 else ''}"
+    return route, when, seats
 
+
+def booking_confirmed(booking):
+    """Tell the passenger (and the driver, for a ride) about a confirmed booking."""
+    route, when, seats = _describe(booking)
     passenger = booking.user
+    if booking.offer:
+        payment = f"Pay the driver RWF {booking.total_price:,} during the ride."
+    else:
+        payment = f"Paid RWF {booking.total_price:,}."
     send(
         passenger.phone,
-        f"ETIKE: booking #{booking.booking_id} confirmed. {route}, {when}, {seats}. "
-        f"Paid RWF {booking.total_price:,}.",
+        f"ETIKE: booking #{booking.booking_id} confirmed. {route}, {when}, {seats}. {payment}",
     )
     if booking.offer:
         driver = booking.offer.driver.user
         send(
             driver.phone,
             f"ETIKE: {passenger.full_name} booked {seats} on your ride {route}, {when} "
-            f"(booking #{booking.booking_id}).",
+            f"(booking #{booking.booking_id}). They pay you RWF {booking.total_price:,}.",
+        )
+
+
+def booking_cancelled(booking):
+    """Tell the passenger (and the driver, for a ride) about a cancellation."""
+    route, when, seats = _describe(booking)
+    passenger = booking.user
+    refund = ""
+    if booking.payment and booking.payment.refund_status == "due":
+        refund = f" Your RWF {booking.total_price:,} will be refunded to your MoMo."
+    send(
+        passenger.phone,
+        f"ETIKE: booking #{booking.booking_id} cancelled. {route}, {when}.{refund}",
+    )
+    if booking.offer:
+        send(
+            booking.offer.driver.user.phone,
+            f"ETIKE: {passenger.full_name} cancelled {seats} on your ride {route}, {when} "
+            f"(booking #{booking.booking_id}). The seats are open again.",
         )
 
 

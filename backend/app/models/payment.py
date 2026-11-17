@@ -2,6 +2,9 @@ from ..extensions import db
 from .user import utcnow
 
 PAYMENT_STATUSES = ("pending", "success", "failed")
+# Set when a paid booking is cancelled: the money is owed back ("due") until
+# an admin has sent it ("refunded").
+REFUND_STATUSES = ("due", "refunded")
 
 
 class Payment(db.Model):
@@ -13,6 +16,9 @@ class Payment(db.Model):
         db.CheckConstraint(f"status IN {PAYMENT_STATUSES}", name="status"),
         db.CheckConstraint("method = 'mtn_momo'", name="method"),
         db.CheckConstraint("amount >= 0", name="amount_not_negative"),
+        db.CheckConstraint(
+            f"refund_status IS NULL OR refund_status IN {REFUND_STATUSES}", name="refund_status"
+        ),
     )
 
     payment_id = db.Column(db.Integer, primary_key=True)
@@ -26,6 +32,8 @@ class Payment(db.Model):
     reference = db.Column(db.String(64), nullable=False, unique=True)
     # Why it failed, in MoMo's words, e.g. APPROVAL_REJECTED or EXPIRED.
     failure_reason = db.Column(db.String(60))
+    refund_status = db.Column(db.String(10))
+    refunded_at = db.Column(db.DateTime(timezone=True))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
@@ -41,6 +49,7 @@ class Payment(db.Model):
             "method": self.method,
             "status": self.status,
             "failure_reason": self.failure_reason,
+            "refund_status": self.refund_status,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

@@ -12,8 +12,19 @@ class BaseConfig:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
 
+    # Bus booking is a future phase: off unless FEATURE_BUS_BOOKING=true.
+    FEATURE_BUS_BOOKING = os.environ.get("FEATURE_BUS_BOOKING", "").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+
     # How long an unpaid booking holds its seats.
     BOOKING_HOLD_MINUTES = int(os.environ.get("BOOKING_HOLD_MINUTES", "15"))
+
+    # Where uploaded car photos are saved (a Docker volume Nginx also reads).
+    UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or "/uploads"
+
+    # A confirmed booking can be cancelled until this many hours before departure.
+    CANCEL_CUTOFF_HOURS = float(os.environ.get("CANCEL_CUTOFF_HOURS") or 2)
 
     # Other sites allowed to call the API from a browser, comma separated.
     # Empty (the default) allows none: our own pages are served from the same
@@ -43,12 +54,17 @@ class BaseConfig:
     AT_API_KEY = os.environ.get("AT_API_KEY")
     AT_SENDER_ID = os.environ.get("AT_SENDER_ID")
 
+    SHOW_LOGIN_CODES = False
+
     TESTING = False
     DEBUG = False
 
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
+    # With no SMS keys on a laptop, show the login code on the page so you
+    # can still log in. Never on a server: there, no SMS means no code login.
+    SHOW_LOGIN_CODES = True
 
 
 class TestConfig(BaseConfig):
@@ -59,6 +75,10 @@ class TestConfig(BaseConfig):
     SECRET_KEY = "test-only-key"
     JWT_SECRET_KEY = "test-only-jwt-key-that-is-long-enough-for-hs256"
     BOOKING_HOLD_MINUTES = 15
+    CANCEL_CUTOFF_HOURS = 2
+    # Off, as in production; bus tests switch it on with the `bus` fixture.
+    FEATURE_BUS_BOOKING = False
+    UPLOAD_DIR = None  # each test that uploads sets its own temporary folder
     # Tests never talk to the real MoMo or SMS services.
     MOMO_SUBSCRIPTION_KEY = MOMO_API_USER = MOMO_API_KEY = MOMO_CALLBACK_URL = None
     MOMO_TARGET_ENVIRONMENT = "sandbox"

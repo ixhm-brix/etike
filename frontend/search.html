@@ -28,16 +28,16 @@
 
   <main id="main" class="page wrap page-narrow">
     <h1>Find a trip</h1>
-    <p class="page-sub">Buses, shared seats and private cars between districts.</p>
+    <p class="page-sub">Shared seats and private cars between districts.</p>
 
     <form class="form" id="search" action="/results.html" novalidate>
           <div class="modes" role="radiogroup" aria-label="How do you want to travel?">
-            <label class="mode">
-              <input type="radio" name="type" value="bus" checked>
+            <label class="mode" data-feature="bus">
+              <input type="radio" name="type" value="bus">
               <span>Bus</span>
             </label>
             <label class="mode">
-              <input type="radio" name="type" value="shared">
+              <input type="radio" name="type" value="shared" checked>
               <span>Shared seat</span>
             </label>
             <label class="mode">
@@ -69,13 +69,13 @@
       <div class="footer-top">
         <div class="footer-brand">
           <a class="brand" href="/">ETIKE</a>
-          <p>Buses, private cars and shared seats between Rwanda's districts.</p>
+          <p>Private cars and shared seats between Rwanda's districts.</p>
         </div>
         <nav class="footer-cols" aria-label="Footer">
           <div>
             <h2>Travel</h2>
             <ul>
-              <li><a href="/search.html?type=bus">Bus tickets</a></li>
+              <li data-feature="bus"><a href="/search.html?type=bus">Bus tickets</a></li>
               <li><a href="/search.html?type=private">Private car</a></li>
               <li><a href="/search.html?type=shared">Shared seat</a></li>
             </ul>

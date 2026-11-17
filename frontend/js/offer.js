@@ -36,11 +36,7 @@
     vehicles = (await api.get("/drivers/vehicles")).vehicles;
     vehicleList.hidden = !vehicles.length;
     vehicleList.replaceChildren(
-      ...vehicles.map((v) => {
-        const li = ui.el("li", "result");
-        li.append(ui.el("span", "result-meta", `${v.plate_number} · ${v.model} · ${v.seats} seats`));
-        return li;
-      }),
+      ...vehicles.map(vehicleCard),
     );
     f.vehicle_id.replaceChildren(
       new Option(vehicles.length ? "Choose a vehicle" : "Add a vehicle first", ""),
@@ -48,6 +44,54 @@
     );
     if (vehicles.length === 1) f.vehicle_id.value = vehicles[0].vehicle_id;
     syncRide();
+  }
+
+  // A car with its photos: passengers see them on shared and private rides.
+  function vehicleCard(v) {
+    const li = ui.el("li", "result");
+    li.append(ui.el("span", "result-meta", `${v.plate_number} · ${v.model} · ${v.seats} seats`));
+    const photos = ui.el("div", "vehicle-photos");
+    v.photos.forEach((p) => {
+      const fig = ui.el("figure");
+      const img = ui.el("img");
+      img.src = p.url;
+      img.alt = `${v.model}`;
+      const remove = ui.el("button", "btn-gray btn-sm", "Remove");
+      remove.type = "button";
+      remove.addEventListener("click", async () => {
+        try {
+          await ui.busy(remove, "…", () => api.del(`/drivers/vehicles/${v.vehicle_id}/photos/${p.photo_id}`));
+          await loadVehicles();
+        } catch (err) {
+          ui.say(vehicleMsg, err.message);
+        }
+      });
+      fig.append(img, remove);
+      photos.append(fig);
+    });
+    if (v.photos.length < 3) {
+      const label = ui.el("label", "btn-gray btn-sm file-label", v.photos.length ? "Add another photo" : "Add photos of your car");
+      const input = ui.el("input");
+      input.type = "file";
+      input.accept = "image/jpeg,image/png,image/webp";
+      input.addEventListener("change", async () => {
+        const file = input.files[0];
+        if (!file) return;
+        try {
+          label.firstChild.textContent = "Uploading…";
+          await api.upload(`/drivers/vehicles/${v.vehicle_id}/photos`, "photo", file);
+          ui.say(vehicleMsg, "Photo added. Passengers see it on your rides.", "info");
+          await loadVehicles();
+        } catch (err) {
+          ui.say(vehicleMsg, err.message);
+          label.firstChild.textContent = "Add photos of your car";
+        }
+      });
+      label.append(input);
+      photos.append(label);
+    }
+    li.append(photos);
+    return li;
   }
 
   function syncRide() {

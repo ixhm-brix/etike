@@ -16,12 +16,13 @@ const api = (() => {
     }
   }
 
-  async function request(path, { method = "GET", body, timeoutMs = 8000 } = {}) {
+  async function request(path, { method = "GET", body, form, timeoutMs = 8000 } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     const headers = {};
     if (body) headers["Content-Type"] = "application/json";
+    // For file uploads the browser sets the multipart Content-Type itself.
     const token = typeof auth !== "undefined" ? auth.token() : null;
     if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -30,7 +31,7 @@ const api = (() => {
       response = await fetch(BASE_URL + path, {
         method,
         headers,
-        body: body ? JSON.stringify(body) : undefined,
+        body: form || (body ? JSON.stringify(body) : undefined),
         signal: controller.signal,
       });
     } catch (err) {
@@ -60,10 +61,24 @@ const api = (() => {
     return data;
   }
 
+  // Which features are on (see backend/app/features.py). Bus booking is a
+  // future phase, so bus-only parts of pages stay hidden unless it is on.
+  const features = request("/config")
+    .then((data) => data.features)
+    .catch(() => ({ bus_booking: false }));
+  features.then((f) => document.documentElement.classList.toggle("has-bus", Boolean(f.bus_booking)));
+
   return {
     ApiError,
+    features: () => features,
     get: (path) => request(path),
     // options: { timeoutMs } for slow requests such as starting a payment.
     post: (path, body, options) => request(path, { method: "POST", body: body || {}, ...options }),
+    del: (path) => request(path, { method: "DELETE" }),
+    upload: (path, field, file) => {
+      const form = new FormData();
+      form.append(field, file);
+      return request(path, { method: "POST", form, timeoutMs: 30000 });
+    },
   };
 })();

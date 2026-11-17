@@ -1,10 +1,13 @@
-// Search results: bus trips or ride offers from the API, never made up.
+// Search results: ride offers (and bus trips, when that future phase is
+// switched on) from the API, never made up.
 (async function results() {
   const params = new URLSearchParams(location.search);
   const origin = params.get("origin");
   const destination = params.get("destination");
   const date = params.get("date") || "";
-  const type = ["bus", "shared", "private"].includes(params.get("type")) ? params.get("type") : "bus";
+  const busOn = (await api.features()).bus_booking;
+  const types = busOn ? ["bus", "shared", "private"] : ["shared", "private"];
+  const type = types.includes(params.get("type")) ? params.get("type") : "shared";
   const seats = params.get("seats") || "1";
 
   const list = document.getElementById("results");
@@ -23,7 +26,9 @@
 
   // Tabs to switch between bus, shared seat and private car.
   const tabs = document.getElementById("tabs");
-  [["bus", "Bus"], ["shared", "Shared seat"], ["private", "Private car"]].forEach(([value, label]) => {
+  [["bus", "Bus"], ["shared", "Shared seat"], ["private", "Private car"]]
+    .filter(([value]) => types.includes(value))
+    .forEach(([value, label]) => {
     const a = ui.el("a", "mode");
     const p = new URLSearchParams(params);
     p.set("type", value);
@@ -61,8 +66,16 @@
     ui.say(msg, err.message);
   }
 
-  function card({ time, price, meta, note, href }) {
+  function card({ time, price, meta, note, href, photo }) {
     const li = ui.el("li", "result");
+    if (photo) {
+      li.classList.add("has-photo");
+      const img = ui.el("img", "result-photo");
+      img.src = photo.url;
+      img.alt = "";
+      img.loading = "lazy";
+      li.append(img);
+    }
     li.append(
       ui.el("span", "result-time", time),
       ui.el("span", "result-price", price),
@@ -95,6 +108,7 @@
       meta: `${r.driver_name}${r.driver_rating ? ` (${r.driver_rating}/5)` : ""} · ${r.vehicle.model}`,
       note: isPrivate ? `whole car · ${r.seats_available} seats` : `per seat · ${r.seats_available} left`,
       href: `/booking.html?offer=${r.offer_id}&seats=${seats}`,
+      photo: r.vehicle.photos?.[0],
     });
   }
 })();

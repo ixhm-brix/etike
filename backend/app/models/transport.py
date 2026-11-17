@@ -121,5 +121,9 @@ class RideOffer(db.Model):
             "driver_id": self.driver_id,
             "driver_name": self.driver.user.full_name,
             "driver_rating": float(self.driver.avg_rating) if self.driver.avg_rating else None,
-            "vehicle": {"model": self.vehicle.model, "seats": self.vehicle.seats},
+            "vehicle": {
+                "model": self.vehicle.model,
+                "seats": self.vehicle.seats,
+                "photos": [p.to_dict() for p in self.vehicle.photos],
+            },
         }

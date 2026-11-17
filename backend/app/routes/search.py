@@ -7,11 +7,19 @@ from flask import Blueprint, jsonify, request
 from .. import validation as v
 from ..errors import not_found
 from ..extensions import db
+from ..features import enabled_features, require_bus
 from ..models import BusCompany, BusTrip, Driver, RideOffer, Route
 from ..places import PLACES
+from ..services import seat_service
 from ..services.booking_service import release_expired
 
 search_bp = Blueprint("search", __name__)
+
+
+@search_bp.get("/config")
+def site_config():
+    """Which features are switched on, so the website can hide the others."""
+    return jsonify({"features": enabled_features()})
 
 
 @search_bp.get("/places")
@@ -28,6 +36,7 @@ def list_routes():
 
 @search_bp.get("/trips")
 def search_trips():
+    require_bus()
     origin, destination, start, end = _search_window()
     release_expired()  # so seats from unpaid bookings show as free again
     trips = (
@@ -50,10 +59,25 @@ def search_trips():
 
 @search_bp.get("/trips/<int:trip_id>")
 def get_trip(trip_id):
+    require_bus()
     trip = db.session.get(BusTrip, trip_id)
     if trip is None or not trip.company.is_verified:
         raise not_found("Bus trip not found.")
     return jsonify({"trip": trip.to_dict()})
+
+
+@search_bp.get("/trips/<int:trip_id>/seats")
+def trip_seats(trip_id):
+    require_bus()
+    trip = db.session.get(BusTrip, trip_id)
+    if trip is None or not trip.company.is_verified:
+        raise not_found("Bus trip not found.")
+    release_expired()
+    return jsonify({
+        "total": trip.total_seats,
+        "taken": seat_service.taken(trip_id=trip_id),
+        "rows": seat_service.layout(trip.total_seats, "bus"),
+    })
 
 
 @search_bp.get("/rides")
@@ -88,6 +112,21 @@ def get_ride(offer_id):
     if offer is None or not offer.driver.is_approved:
         raise not_found("Ride not found.")
     return jsonify({"ride": offer.to_dict()})
+
+
+@search_bp.get("/rides/<int:offer_id>/seats")
+def ride_seats(offer_id):
+    from ..services.booking_service import _ride_held
+
+    offer = db.session.get(RideOffer, offer_id)
+    if offer is None or not offer.driver.is_approved:
+        raise not_found("Ride not found.")
+    release_expired()
+    return jsonify({
+        "total": offer.vehicle.seats,
+        "taken": _ride_held(offer),
+        "rows": seat_service.layout(offer.vehicle.seats, "car"),
+    })
 
 
 def _search_window():

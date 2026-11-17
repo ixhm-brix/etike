@@ -19,3 +19,7 @@ venv/
 # Data: raw files may contain personal details, review before adding any
 data/raw/*
 !data/raw/.gitkeep
+
+# Local test data tool: fake data must never be committed (real data only)
+backend/local_test_data.py
+backend/local_test_photos/

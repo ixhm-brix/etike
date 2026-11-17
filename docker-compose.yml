@@ -24,7 +24,9 @@ services:
       FLASK_ENV: development
       SECRET_KEY: ${SECRET_KEY:-dev-only-secret}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-not-for-production}
+      FEATURE_BUS_BOOKING: ${FEATURE_BUS_BOOKING:-false}
       BOOKING_HOLD_MINUTES: ${BOOKING_HOLD_MINUTES:-15}
+      CANCEL_CUTOFF_HOURS: ${CANCEL_CUTOFF_HOURS:-2}
       # MTN MoMo sandbox and Africa's Talking sandbox keys, if you have them
       # in .env. Without them payments return 503 and SMS is skipped.
       MOMO_BASE_URL: ${MOMO_BASE_URL:-}
@@ -42,6 +44,8 @@ services:
       - ./backend:/app
       # So data/scripts can be run inside the container (see data/README.md).
       - ./data:/data
+      # Car photos drivers upload; Nginx serves the same volume.
+      - uploads:/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -53,8 +57,10 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./frontend:/usr/share/nginx/html:ro
+      - uploads:/var/www/uploads:ro
     depends_on:
       - api
 
 volumes:
   db_data:
+  uploads:

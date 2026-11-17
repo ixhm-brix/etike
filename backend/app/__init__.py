@@ -48,6 +48,7 @@ def create_app(config_name=None):
     from .routes.payments import payments_bp
     from .routes.ratings import ratings_bp
     from .routes.search import search_bp
+    from .routes.tickets import tickets_bp
 
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
@@ -57,6 +58,7 @@ def create_app(config_name=None):
     app.register_blueprint(payments_bp, url_prefix="/api")
     app.register_blueprint(ratings_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/api")
+    app.register_blueprint(tickets_bp, url_prefix="/api")
 
     register_error_handlers(app)
     register_jwt_errors(jwt)

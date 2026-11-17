@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Run as a normal user, never as root.
-RUN useradd --create-home etike && chown -R etike /app
+# /uploads holds car photos (a Docker volume takes its owner from here).
+RUN useradd --create-home etike && mkdir -p /uploads && chown -R etike /app /uploads
 USER etike
 
 EXPOSE 8000

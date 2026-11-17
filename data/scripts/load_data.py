@@ -25,13 +25,23 @@ from app import create_app  # noqa: E402
 from app.extensions import db  # noqa: E402
 from app.models import BusCompany, BusTrip, Route  # noqa: E402
 
+BUS_PAUSED = ("Skipped {name}: bus booking is a future phase and FEATURE_BUS_BOOKING is off. "
+              "The data stays in data/processed/ for when it comes back.")
+
 
 def main():
     app = create_app()
     with app.app_context():
-        companies = load_companies()
+        bus = app.config["FEATURE_BUS_BOOKING"]
+        if bus:
+            companies = load_companies()
+        else:
+            print(BUS_PAUSED.format(name="bus_companies.csv"))
         routes = load_routes()
-        load_trips(companies, routes)
+        if bus:
+            load_trips(companies, routes)
+        else:
+            print(BUS_PAUSED.format(name="bus_trips.csv"))
         db.session.commit()
     print("Done.")
 

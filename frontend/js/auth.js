@@ -68,10 +68,10 @@ const auth = (() => {
       a.textContent = text;
       if (cls) a.className = cls;
       box.append(a);
+      return a;
     };
     if (!u) {
-      link("/login.html", "Log in");
-      link("/register.html", "Sign up", "account-cta");
+      link("/login.html", "Log in", "account-cta");
       return;
     }
     const name = document.createElement("span");
@@ -80,7 +80,8 @@ const auth = (() => {
     box.append(name);
     if (u.role === "admin") {
       link("/admin/drivers.html", "Drivers");
-      link("/admin/companies.html", "Companies");
+      link("/admin/companies.html", "Companies").dataset.feature = "bus";
+      link("/admin/refunds.html", "Refunds");
     } else if (u.role === "driver") link("/driver/offer.html", "Post a ride");
     else link("/bookings.html", "My bookings");
     const out = document.createElement("button");

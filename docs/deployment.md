@@ -168,6 +168,14 @@ crontab -e
 30 2 * * * /home/deploy/etike/infra/backups/backup-db.sh >> /home/deploy/backups/backup.log 2>&1
 ```
 
+The script backs up the database. Car photos are in the `uploads` Docker volume; back it up too, for example weekly:
+
+```bash
+docker run --rm -v etike_uploads:/data -v ~/backups:/backup alpine tar czf /backup/uploads-$(date +%F).tar.gz -C /data .
+```
+
+(The volume is named after the project folder; check with `docker volume ls`.)
+
 Backups contain personal data (names, phone numbers), so the folder is readable by the owner only. Also copy them off the server regularly (for example `scp` to a team laptop or an encrypted bucket): a backup on the same disk does not survive losing the server.
 
 ### Restoring a backup

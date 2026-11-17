@@ -34,10 +34,22 @@
 
     <form class="form" id="book" hidden novalidate>
       <dl class="summary" id="summary"></dl>
-      <label class="field" id="seats-field">
+      <div class="car-photos" id="photos" hidden></div>
+      <label class="field" id="seats-field" hidden>
         <span>Seats</span>
         <select name="seats"></select>
       </label>
+      <section class="seatmap-box" id="seatmap-box" hidden aria-labelledby="seatmap-title">
+        <h2 class="seatmap-title" id="seatmap-title">Choose your seats</h2>
+        <div class="seatmap-legend" aria-hidden="true">
+          <span><i class="seat-key"></i>Free</span>
+          <span><i class="seat-key is-chosen"></i>Yours</span>
+          <span><i class="seat-key is-taken"></i>Taken</span>
+        </div>
+        <div class="seatmap" id="seatmap" role="group" aria-label="Seat map"></div>
+        <p class="field-hint" id="seatmap-note"></p>
+      </section>
+      <p class="field-hint" id="pay-note"></p>
       <button class="btn-black" type="submit">Confirm booking</button>
       <p class="trip-msg" id="msg" role="alert"></p>
     </form>
@@ -49,13 +61,13 @@
       <div class="footer-top">
         <div class="footer-brand">
           <a class="brand" href="/">ETIKE</a>
-          <p>Buses, private cars and shared seats between Rwanda's districts.</p>
+          <p>Private cars and shared seats between Rwanda's districts.</p>
         </div>
         <nav class="footer-cols" aria-label="Footer">
           <div>
             <h2>Travel</h2>
             <ul>
-              <li><a href="/search.html?type=bus">Bus tickets</a></li>
+              <li data-feature="bus"><a href="/search.html?type=bus">Bus tickets</a></li>
               <li><a href="/search.html?type=private">Private car</a></li>
               <li><a href="/search.html?type=shared">Shared seat</a></li>
             </ul>

@@ -19,7 +19,7 @@ import uuid
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
 
-from ..errors import ApiError, conflict, not_found
+from ..errors import ApiError, bad_request, conflict, not_found
 from ..extensions import db
 from ..models import Booking, Payment
 from . import booking_service, momo_client, sms_service
@@ -61,6 +61,8 @@ def start(user, booking_id, phone):
     booking = db.session.get(Booking, booking_id)
     if booking is None or booking.user_id != user.user_id:
         raise not_found("Booking not found.")
+    if booking.offer_id is not None:
+        raise bad_request("Shared and private rides are paid to the driver, not online.")
     if booking.payment is not None:
         if booking.payment.status == "pending":
             raise conflict("A payment for this booking is already in progress.",
