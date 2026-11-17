@@ -17,6 +17,11 @@ class BaseConfig:
         "1", "true", "yes", "on"
     )
 
+    # "Try it with a test account" buttons on the login page. They log in to
+    # the TEST accounts without a password, so never switch this on for a
+    # public server. On by default only in development.
+    DEMO_LOGIN = os.environ.get("DEMO_LOGIN", "").strip().lower() in ("1", "true", "yes", "on")
+
     # How long an unpaid booking holds its seats.
     BOOKING_HOLD_MINUTES = int(os.environ.get("BOOKING_HOLD_MINUTES", "15"))
 
@@ -78,6 +83,7 @@ class TestConfig(BaseConfig):
     CANCEL_CUTOFF_HOURS = 2
     # Off, as in production; bus tests switch it on with the `bus` fixture.
     FEATURE_BUS_BOOKING = False
+    DEMO_LOGIN = False
     UPLOAD_DIR = None  # each test that uploads sets its own temporary folder
     # Tests never talk to the real MoMo or SMS services.
     MOMO_SUBSCRIPTION_KEY = MOMO_API_USER = MOMO_API_KEY = MOMO_CALLBACK_URL = None

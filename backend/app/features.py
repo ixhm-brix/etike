@@ -29,4 +29,7 @@ def reject_bus_booking():
 
 
 def enabled_features():
-    return {"bus_booking": bus_enabled()}
+    return {
+        "bus_booking": bus_enabled(),
+        "demo_login": bool(current_app.config.get("DEMO_LOGIN")),
+    }

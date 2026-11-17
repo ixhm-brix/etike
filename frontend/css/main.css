@@ -1220,6 +1220,9 @@ a {
   position: absolute;
   top: 0.25rem;
   right: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.6875rem;
+  background: rgb(255 255 255 / 0.9);
 }
 .file-label input {
   position: absolute;
@@ -1297,8 +1300,30 @@ a {
 
 /* Bus booking is a future phase: bus-only things show only when the API's
    /api/config says it is on (api.js then adds .has-bus to <html>). */
-html:not(.has-bus) [data-feature="bus"] {
+html:not(.has-bus) [data-feature="bus"],
+html:not(.has-demo) [data-feature="demo"] {
   display: none !important;
+}
+.demo-login {
+  margin-top: 2.5rem;
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--gray-200);
+  display: grid;
+  gap: 0.6rem;
+}
+.demo-login h2 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.demo-login p {
+  color: var(--gray-700);
+  font-size: 0.9375rem;
+}
+.demo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 .coming-soon {
   margin-top: 0.5rem;

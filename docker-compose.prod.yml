@@ -29,6 +29,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
       FEATURE_BUS_BOOKING: ${FEATURE_BUS_BOOKING:-false}
+      # Logs in to TEST accounts without a password: keep off on a public server.
+      DEMO_LOGIN: ${DEMO_LOGIN:-false}
       BOOKING_HOLD_MINUTES: ${BOOKING_HOLD_MINUTES:-15}
       CANCEL_CUTOFF_HOURS: ${CANCEL_CUTOFF_HOURS:-2}
       CORS_ORIGINS: ${CORS_ORIGINS:-}

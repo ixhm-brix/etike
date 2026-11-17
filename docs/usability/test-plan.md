@@ -45,7 +45,7 @@ Read each task out as written. Don't explain the screen or point.
 | # | Who | Task | Done when |
 |---|-----|------|-----------|
 | T1 | Traveller | "You want to travel from Kigali to Huye next Friday. Find what is available." | Results page for Kigali to Huye on that date is showing |
-| T2 | Traveller | "Book one seat on the trip you like best." (logs in with the code sent to their phone if asked) | Payment page shows the amount |
+| T2 | Traveller | "Book one seat on the trip you like best." (creates an account if asked) | Payment page shows the amount |
 | T3 | Traveller | "Pay for it with mobile money." | Page says "You're booked" |
 | T4 | Traveller | "You took a shared ride yesterday. Rate the driver." | Rating saved |
 | T5 | Driver | "Add your car, then offer 3 seats from Kigali to Musanze tomorrow at 7:00 for 3,000 francs each." | Ride posted message shows |

@@ -35,8 +35,8 @@ def test_config_tells_the_website(client, app):
     app.config["FEATURE_BUS_BOOKING"] = True
     on = client.get("/api/config").get_json()
 
-    assert off == {"features": {"bus_booking": False}}
-    assert on == {"features": {"bus_booking": True}}
+    assert off["features"]["bus_booking"] is False
+    assert on["features"]["bus_booking"] is True
 
 
 def test_bus_search_returns_404(app, client):

@@ -92,11 +92,11 @@ Missing files are reported and skipped. The scripts never make up data to fill a
 
 ## Logging in
 
-Passengers don't create an account or a password. They type their phone number, get a 6-digit code by SMS, and type it in; a new number is asked for a name once, and becomes a passenger account. A code works once, for 10 minutes, and stops after 5 wrong tries; a number can ask for a new code once a minute and 5 times an hour.
+People log in with their **phone number and password**, and sign up on the **Create an account** page as a passenger or a driver. Drivers also give their licence number, which an admin checks before they can post rides.
 
-- **Codes are sent with Africa's Talking** (see "SMS" below).
-- **On a laptop without SMS keys** (`FLASK_ENV=development`), the login page shows the code instead, so you can still log in. On a server without SMS keys, code login answers 503 and people use a password.
-- **Passwords still work:** admins, and drivers who signed up with one, can use "Log in with a password instead". Drivers still sign up on the driver form, because their licence is checked before they can post rides.
+**Test accounts.** When `DEMO_LOGIN` is on, the login page also shows "Just looking around?" with **Passenger**, **Driver** and **Admin** buttons that log straight in to a test account. They only ever use accounts whose name starts with "TEST " (an approved driver for Driver). `DEMO_LOGIN` is on by default with `docker-compose.yml` (your laptop) and off with `docker-compose.prod.yml`: never switch it on for a public server, since it logs in without a password.
+
+The API can also log people in with a one-time code sent by SMS (`POST /api/auth/code` and `/api/auth/verify`). It's kept for later and isn't shown on the website.
 
 ## Admin accounts
 
@@ -175,6 +175,7 @@ All responses are JSON. Errors always look like `{"error": {"code": "...", "mess
 | `POST /api/auth/login` | anyone | `phone` and `password`. Returns a token |
 | `POST /api/auth/code` | anyone | Text a 6-digit login code to `phone` |
 | `POST /api/auth/verify` | anyone | Log in with `phone` and `code` (and `full_name` for a new number, which becomes a passenger). Returns a token |
+| `POST /api/auth/demo` | anyone, only with `DEMO_LOGIN` on | Log in as a test account (`role`: passenger, driver or admin) |
 | `GET /api/auth/me` | logged in | The current user |
 | `GET /api/config` | anyone | Which features are switched on, e.g. `{"features": {"bus_booking": false}}` |
 | `GET /api/places` | anyone | Places you can travel between |
@@ -225,6 +226,7 @@ Dates and times are Rwanda local time, written like `2026-12-24` and `2026-12-24
 | `GUNICORN_WORKERS` | api | Worker processes in production (default 3) |
 | `BOOKING_HOLD_MINUTES` | api | How long an unpaid booking holds its seats (default 15) |
 | `UPLOAD_DIR` | api | Where car photos are saved (default `/uploads`, a Docker volume Nginx also serves) |
+| `DEMO_LOGIN` | api | `true` shows one-click test-account logins on the login page. On by default only in `docker-compose.yml`; never on a public server |
 | `FEATURE_BUS_BOOKING` | api | `true` switches on bus booking, a future phase (default off: bus endpoints answer 404, bus bookings 400, and the website hides bus options) |
 | `CANCEL_CUTOFF_HOURS` | api | A confirmed booking can be cancelled until this many hours before departure (default 2) |
 | `CORS_ORIGINS` | api | Other sites allowed to call the API from a browser, comma separated. Empty by default (same-origin only) |

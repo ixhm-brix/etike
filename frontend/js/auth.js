@@ -71,7 +71,8 @@ const auth = (() => {
       return a;
     };
     if (!u) {
-      link("/login.html", "Log in", "account-cta");
+      link("/login.html", "Log in");
+      link("/register.html", "Sign up", "account-cta");
       return;
     }
     const name = document.createElement("span");

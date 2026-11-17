@@ -201,6 +201,7 @@ Test a restore into a scratch database now and then; a backup you have never res
 - [ ] `.env` has `chmod 600`, real random secrets, and is not in Git.
 - [ ] MoMo stays on the sandbox (`MOMO_TARGET_ENVIRONMENT=sandbox`) until MTN approves the live account.
 - [ ] `CORS_ORIGINS` is empty unless another site must call the API.
+- [ ] `DEMO_LOGIN` is not `true` (it logs in to test accounts without a password).
 - [ ] Only ports 22, 80 and 443 are open; SSH keys only, no root login.
 - [ ] HTTPS is on and SSL Labs gives an A.
 - [ ] The admin password is long and stored in a password manager; `ADMIN_*` values are removed from `.env` after `create-admin`.

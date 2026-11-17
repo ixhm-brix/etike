@@ -191,6 +191,32 @@ def verify_code():
     return jsonify(body), 201 if new_user else 200
 
 
+# Test accounts are the ones whose name starts with this (see the local test
+# data tool). Demo login never touches any other account.
+DEMO_PREFIX = "TEST "
+
+
+@auth_bp.post("/demo")
+def demo_login():
+    """Log in as a test account with one click, for demos and testing.
+
+    Only when DEMO_LOGIN is on, and only into accounts named "TEST ...".
+    """
+    if not current_app.config.get("DEMO_LOGIN"):
+        raise ApiError(404, "not_found", "Test accounts are not available here.")
+    role = v.choice(v.json_body().get("role"), "role", ("passenger", "driver", "admin"))
+    query = db.session.query(User).filter(User.role == role,
+                                          User.full_name.like(f"{DEMO_PREFIX}%"))
+    if role == "driver":
+        # An approved driver, so posting rides works in the demo.
+        query = query.join(Driver).filter(Driver.is_approved.is_(True))
+    user = query.order_by(User.user_id).first()
+    if user is None:
+        raise ApiError(404, "no_test_account",
+                       f"There is no test {role} account. Load the test data first.")
+    return jsonify({"user": user.to_dict(), "access_token": _token_for(user)})
+
+
 def _hash_code(phone, code):
     key = current_app.config["SECRET_KEY"].encode()
     return hmac.new(key, f"{phone}:{code}".encode(), hashlib.sha256).hexdigest()

@@ -25,6 +25,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev-only-secret}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-not-for-production}
       FEATURE_BUS_BOOKING: ${FEATURE_BUS_BOOKING:-false}
+      # One-click test accounts on the login page; fine on your own laptop.
+      DEMO_LOGIN: ${DEMO_LOGIN:-true}
       BOOKING_HOLD_MINUTES: ${BOOKING_HOLD_MINUTES:-15}
       CANCEL_CUTOFF_HOURS: ${CANCEL_CUTOFF_HOURS:-2}
       # MTN MoMo sandbox and Africa's Talking sandbox keys, if you have them

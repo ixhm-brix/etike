@@ -66,7 +66,10 @@ const api = (() => {
   const features = request("/config")
     .then((data) => data.features)
     .catch(() => ({ bus_booking: false }));
-  features.then((f) => document.documentElement.classList.toggle("has-bus", Boolean(f.bus_booking)));
+  features.then((f) => {
+    document.documentElement.classList.toggle("has-bus", Boolean(f.bus_booking));
+    document.documentElement.classList.toggle("has-demo", Boolean(f.demo_login));
+  });
 
   return {
     ApiError,
