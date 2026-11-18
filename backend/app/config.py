@@ -11,6 +11,9 @@ class BaseConfig:
     SECRET_KEY = os.environ.get("SECRET_KEY")
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
+    # Largest request the API accepts (car photos are the biggest, 3 MB).
+    # Nginx has the same limits; this also covers direct calls to the API.
+    MAX_CONTENT_LENGTH = 4 * 1024 * 1024
 
     # Bus booking is a future phase: off unless FEATURE_BUS_BOOKING=true.
     FEATURE_BUS_BOOKING = os.environ.get("FEATURE_BUS_BOOKING", "").strip().lower() in (

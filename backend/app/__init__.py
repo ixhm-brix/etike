@@ -4,9 +4,28 @@ import os
 
 from flask import Flask
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import CONFIGS
 from .extensions import db, jwt, migrate
+
+
+def check_production(config):
+    """Refuse to start a server that is unsafe or half-configured."""
+    required = ("DATABASE_URL", "SECRET_KEY", "JWT_SECRET_KEY")
+    missing = [k for k in required if not config.get(k)]
+    if missing:
+        raise RuntimeError(f"Missing environment variables: {', '.join(missing)}")
+    weak = [k for k in ("SECRET_KEY", "JWT_SECRET_KEY")
+            if config[k] == "change-me" or len(config[k]) < 32]
+    if weak:
+        raise RuntimeError(f"Use a long random value for: {', '.join(weak)} "
+                           "(see .env.example).")
+    if config["SECRET_KEY"] == config["JWT_SECRET_KEY"]:
+        raise RuntimeError("SECRET_KEY and JWT_SECRET_KEY must be different.")
+    if config.get("DEMO_LOGIN"):
+        # Demo login opens TEST accounts without a password.
+        raise RuntimeError("DEMO_LOGIN must be off in production.")
 
 
 def create_app(config_name=None):
@@ -23,11 +42,10 @@ def create_app(config_name=None):
     app.config.from_object(config)
 
     if config_name == "production":
-        # Fail fast on the server instead of running half-configured.
-        required = ("DATABASE_URL", "SECRET_KEY", "JWT_SECRET_KEY")
-        missing = [k for k in required if not app.config.get(k)]
-        if missing:
-            raise RuntimeError(f"Missing environment variables: {', '.join(missing)}")
+        check_production(app.config)
+        # Behind Nginx: trust its X-Forwarded-Proto/Host so links we build
+        # (ticket QR codes) use https and the real domain.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     db.init_app(app)
     migrate.init_app(app, db)
