@@ -4,10 +4,13 @@
 
 Find out whether real travellers and drivers can use ETIKE without help, and where they get stuck. Specifically:
 
-1. Can a traveller find a trip, book it and pay with mobile money on their own phone?
-2. Can a traveller rate a driver after a ride?
-3. Can a driver add a vehicle and post a ride?
-4. How usable do people find the site overall (System Usability Scale score)?
+ETIKE's current scope is shared and private rides between districts. A ride is confirmed as soon as it is booked, and the passenger pays the driver during or after the ride (cash or MoMo), like a taxi app. There is no online payment for rides; online MoMo payment belongs to the bus phase, which is switched off.
+
+1. Can a traveller find a ride, book it, and understand that they pay the driver?
+2. Can a traveller cancel a booking, and do they understand the cancellation deadline?
+3. Can a traveller rate a driver after a ride?
+4. Can a driver add a vehicle and post a ride?
+5. How usable do people find the site overall (System Usability Scale score)?
 
 ## Participants
 
@@ -26,14 +29,14 @@ Before each session, read the participant this (in Kinyarwanda or English, their
 - The session takes about 20 minutes and you can stop at any time without giving a reason.
 - We will take notes and time the tasks. We will not record your face, voice or screen unless you agree separately.
 - We do not keep your name or phone number with the results. You get an ID like P3.
-- Payments use MTN MoMo's sandbox: no real money moves and your phone will not be charged.
+- Nothing is paid during the session: rides are paid to the driver, and no real ride takes place.
 
 Keep signed consent forms (or a note that consent was given) separate from the results, and destroy them when the project ends. Do not put them in the repository.
 
 ## Set-up
 
 - A test phone with the site open, logged out, on mobile data (not office Wi-Fi), so the speed is realistic.
-- Payments on the MoMo sandbox. No phone prompt arrives in the sandbox: tell the participant to enter any MTN number (for example their own) and that the approval step is simulated.
+- At least two real rides posted on the test server for Kigali to Huye next Friday (one shared, one private), by a test driver account the facilitator controls. Never use the live database for sessions.
 - For the rating task, a confirmed test ride booking that has already departed, made by the facilitator beforehand on the test server (not the live database).
 - For the driver task, a test driver account already approved by the facilitator.
 - One facilitator who gives the tasks and stays quiet, and one note-taker with a stopwatch.
@@ -45,10 +48,11 @@ Read each task out as written. Don't explain the screen or point.
 | # | Who | Task | Done when |
 |---|-----|------|-----------|
 | T1 | Traveller | "You want to travel from Kigali to Huye next Friday. Find what is available." | Results page for Kigali to Huye on that date is showing |
-| T2 | Traveller | "Book one seat on the trip you like best." (creates an account if asked) | Payment page shows the amount |
-| T3 | Traveller | "Pay for it with mobile money." | Page says "You're booked" |
-| T4 | Traveller | "You took a shared ride yesterday. Rate the driver." | Rating saved |
-| T5 | Driver | "Add your car, then offer 3 seats from Kigali to Musanze tomorrow at 7:00 for 3,000 francs each." | Ride posted message shows |
+| T2 | Traveller | "Book one seat in a shared ride you like." (creates an account if asked) | The booking shows as confirmed in My bookings |
+| T3 | Traveller | "How and when will you pay for this ride?" (answer out loud) | Says they pay the driver, during or after the ride |
+| T4 | Traveller | "Your plans changed. Cancel that booking." | Booking shows as cancelled |
+| T5 | Traveller | "You took a shared ride yesterday. Rate the driver." | Rating saved |
+| T6 | Driver | "Add your car, then offer 3 seats from Kigali to Musanze tomorrow at 7:00 for 3,000 francs each." | Ride posted message shows |
 
 Ask participants to think aloud: "say what you are looking for and what you expect to happen".
 
@@ -68,4 +72,4 @@ After all tasks, the participant fills in the [SUS questionnaire](sus-questionna
 1. Enter results in [results.md](results.md), using participant IDs only.
 2. For each task, calculate the completion rate, median time and total errors.
 3. Calculate the average SUS score. 68 is roughly average; aim for above 68.
-4. List the problems that blocked or slowed more than one person, and turn each into a GitHub issue.
+4. Log every problem in [bug-log.md](bug-log.md). Problems that blocked or slowed more than one person are severity High or above.
