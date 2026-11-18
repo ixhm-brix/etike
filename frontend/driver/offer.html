@@ -30,6 +30,50 @@
     <h1>Post a ride</h1>
     <p class="page-sub" id="status"></p>
 
+    <section class="block" aria-labelledby="details-title">
+      <h2 id="details-title">1. Your details</h2>
+      <p class="block-note" id="details-note">As on your national ID and driving licence. Only ETIKE's reviewers see them; passengers never do.</p>
+      <form class="form" id="details" novalidate>
+        <label class="field">
+          <span>National ID number</span>
+          <input type="text" name="national_id_number" inputmode="numeric" autocomplete="off" placeholder="16 digits" maxlength="24" required>
+        </label>
+        <label class="field">
+          <span>Date of birth</span>
+          <input type="date" name="date_of_birth" autocomplete="bday" required>
+        </label>
+        <label class="field">
+          <span>Gender</span>
+          <select name="gender" required>
+            <option value="">Choose</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Home district</span>
+          <select name="home_district" required></select>
+        </label>
+        <label class="field">
+          <span>Home sector</span>
+          <input type="text" name="home_sector" autocomplete="off" placeholder="e.g. Kimironko" required>
+        </label>
+        <label class="field">
+          <span>Driving licence number</span>
+          <input type="text" name="license_number" autocomplete="off" required>
+        </label>
+        <button class="btn-gray btn-sm" type="submit">Save details</button>
+        <p class="trip-msg" id="details-msg" role="alert"></p>
+      </form>
+    </section>
+
+    <section class="block" aria-labelledby="documents-title">
+      <h2 id="documents-title">2. Your documents</h2>
+      <p class="block-note">In Rwanda, carrying passengers for money needs RURA authorisation. If you drive for a taxi company or cooperative, upload its RURA licence with proof that you drive for it. Upload a clear photo or PDF of each document (under 5 MB). We check them, then approve your account. Only you and ETIKE's reviewers can see them.</p>
+      <ul class="doc-list" id="documents"></ul>
+      <p class="trip-msg" id="documents-msg" role="alert"></p>
+    </section>
+
     <section class="block" aria-labelledby="vehicles-title">
       <h2 id="vehicles-title">Your vehicles</h2>
       <ul class="results" id="vehicles"></ul>

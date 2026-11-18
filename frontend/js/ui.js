@@ -13,6 +13,9 @@ const ui = (() => {
   const day = (iso) =>
     new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
+  // A date with its year, e.g. "30 Jun 2027" (document expiry dates).
+  const date = (iso) =>
+    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const today = () => {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -87,5 +90,21 @@ const ui = (() => {
     return box;
   }
 
-  return { money, when, clock, day, today, fillPlaces, say, formError, clearErrors, busy, el, empty };
+  // Open a private file (a driver's document) in a new tab. It needs the
+  // login token, so it is fetched first and opened from a local copy.
+  async function openFile(path, button, box) {
+    const tab = window.open("", "_blank");
+    try {
+      const blob = await busy(button, "…", () => api.file(path));
+      const url = URL.createObjectURL(blob);
+      if (tab) tab.location = url;
+      else location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      if (tab) tab.close();
+      say(box, err.message);
+    }
+  }
+
+  return { money, when, clock, day, date, today, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
 })();

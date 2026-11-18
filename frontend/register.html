@@ -54,16 +54,12 @@
         <span>Email (optional)</span>
         <input type="email" name="email" autocomplete="email">
       </label>
-      <label class="field" id="licence-field" hidden>
-        <span>Driving licence number</span>
-        <input type="text" name="license_number" autocomplete="off">
-      </label>
-      <p class="field-hint" id="licence-hint" hidden>We check your licence before you can post rides.</p>
       <label class="field">
         <span>Password</span>
         <input type="password" name="password" autocomplete="new-password" minlength="8" required>
       </label>
       <p class="field-hint">At least 8 characters.</p>
+      <p class="field-hint" id="driver-hint" hidden>After you create your account, you fill in your details (national ID, driving licence) and upload your documents on your driver page. We check them, then approve you to post rides.</p>
       <button class="btn-black" type="submit">Create account</button>
       <p class="trip-msg" id="msg" role="alert"></p>
     </form>
