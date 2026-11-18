@@ -6,7 +6,7 @@ from .login_code import LoginCode
 from .payment import Payment
 from .rating import Rating
 from .transport import BusCompany, BusTrip, RideOffer, Route
-from .user import Driver, User, Vehicle, VehiclePhoto
+from .user import Driver, DriverDocument, User, Vehicle, VehiclePhoto
 
 __all__ = [
     "Booking",
@@ -14,6 +14,7 @@ __all__ = [
     "BusCompany",
     "BusTrip",
     "Driver",
+    "DriverDocument",
     "LoginCode",
     "Payment",
     "Rating",

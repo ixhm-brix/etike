@@ -8,6 +8,7 @@ All test data is created here or inside the tests. It is never committed as
 seed data, and it only ever lives in the test database.
 """
 
+import io
 from datetime import timedelta
 
 import pytest
@@ -66,10 +67,25 @@ def new_phone():
     return f"078{next(_phone_counter)}"
 
 
+# What a driver fills in on the driver page after signing up (besides a
+# unique ID and licence number, which details_for() adds).
+DRIVER_DETAILS = {"date_of_birth": "1990-05-14", "gender": "female",
+                  "home_district": "Huye", "home_sector": "Ngoma"}
+
+
+def details_for():
+    """A full set of driver details with a unique ID and licence number."""
+    return {**DRIVER_DETAILS, "national_id_number": new_national_id(),
+            "license_number": f"TEST{new_phone()}"}
+
+
+def new_national_id():
+    """A different 16-digit number each time."""
+    return f"119907{next(_phone_counter):010d}"
+
+
 def register(client, role="passenger", **extra):
     body = {"full_name": "Test User", "phone": new_phone(), "password": PASSWORD, "role": role}
-    if role == "driver":
-        body["license_number"] = f"TEST{new_phone()}"
     body.update(extra)
     return client.post("/api/auth/register", json=body)
 
@@ -209,3 +225,33 @@ def make_admin(app, client):
 def _route(origin, destination):
     route = db.session.query(Route).filter_by(origin=origin, destination=destination).first()
     return route or Route(origin=origin, destination=destination)
+
+
+# The smallest file each check accepts: a PDF is recognised by "%PDF-".
+PDF = b"%PDF-1.4\n%test document\n"
+
+
+@pytest.fixture
+def documents(app, client, tmp_path):
+    """documents(headers, skip=()) does everything a driver needs for approval:
+    fills in their details, then uploads every legal document (except the
+    types in skip), each valid for a year."""
+    app.config["DOCUMENT_DIR"] = str(tmp_path / "documents")
+    from app import driver_documents
+
+    expires = (local_now() + timedelta(days=365)).date().isoformat()
+
+    def upload_all(headers, skip=()):
+        filled = client.put("/api/drivers/details", json=details_for(), headers=headers)
+        assert filled.status_code == 200, filled.get_json()
+        for doc_type in driver_documents.TYPES:
+            if doc_type in skip:
+                continue
+            response = client.post(
+                f"/api/drivers/documents/{doc_type}",
+                data={"document": (io.BytesIO(PDF), "doc.pdf"), "expires_on": expires},
+                headers=headers, content_type="multipart/form-data",
+            )
+            assert response.status_code == 201, response.get_json()
+
+    return upload_all

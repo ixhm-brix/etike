@@ -1,6 +1,7 @@
 """data/scripts/add_drivers.py: real drivers added by an admin start unapproved."""
 
 import importlib.util
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,8 @@ add_drivers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(add_drivers)
 
 ROW = {"full_name": "  Jean  Bosco ", "phone": "078 555 1234", "license_number": "rw12345",
+       "national_id_number": "1 1985 8 0012345 0 67", "date_of_birth": "1985-03-02",
+       "gender": "Male", "home_district": "Butare", "home_sector": "Tumba",
        "plate_number": "rad 123 b", "model": "Toyota RAV4", "seats": "4"}
 
 
@@ -24,12 +27,15 @@ def test_clean_matches_the_website_rules():
 
     assert d == {"full_name": "Jean Bosco", "phone": "+250785551234",
                  "license_number": "RW12345", "plate_number": "RAD123B",
-                 "model": "Toyota RAV4", "seats": 4}
+                 "model": "Toyota RAV4", "seats": 4,
+                 "national_id_number": "1198580012345067", "date_of_birth": date(1985, 3, 2),
+                 "gender": "male", "home_district": "Huye", "home_sector": "Tumba"}
 
 
 @pytest.mark.parametrize("change", [
     {"phone": "12345"}, {"seats": "0"}, {"seats": "four"}, {"license_number": "x"},
-    {"plate_number": ""}, {"full_name": ""},
+    {"plate_number": ""}, {"full_name": ""}, {"national_id_number": "123"},
+    {"date_of_birth": "2015-01-01"}, {"gender": "other"}, {"home_district": "Atlantis"},
 ])
 def test_bad_rows_are_refused(change):
     with pytest.raises(add_drivers.RowError):
@@ -45,6 +51,7 @@ def test_driver_starts_unapproved_with_car(app):
         assert user.driver.is_approved is False
         assert [v.plate_number for v in user.driver.vehicles] == ["RAD123B"]
         assert check_password_hash(user.password_hash, password)
+        assert user.driver.national_id_number == "1198580012345067"
 
 
 def test_existing_phone_or_plate_is_skipped(app):

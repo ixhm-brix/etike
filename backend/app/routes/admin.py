@@ -2,13 +2,15 @@
 
 from flask import Blueprint, jsonify, request
 
+from .. import driver_documents as docs
 from .. import validation as v
 from ..auth import role_required
-from ..errors import not_found
+from ..errors import ApiError, not_found
 from ..extensions import db
 from ..features import require_bus
 from ..models import Booking, BusCompany, Driver, Payment
 from ..models.user import utcnow
+from .drivers import send_document
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -22,6 +24,9 @@ def _driver_dict(driver):
         "email": user.email,
         "registered_at": user.created_at.isoformat(),
         "vehicles": [x.to_dict() for x in driver.vehicles],
+        "details": driver.details_dict(),
+        "documents": docs.checklist(driver),
+        "document_problems": docs.problems(driver),
     }
 
 
@@ -45,8 +50,14 @@ def list_drivers():
 @role_required("admin")
 def approve_driver(driver_id):
     driver = _get_driver(driver_id)
+    problems = docs.problems(driver)
+    if problems:
+        # Carrying paying passengers needs these documents (see driver_documents.py).
+        raise ApiError(409, "documents_incomplete",
+                       "This driver can't be approved yet. " + "; ".join(problems) + ".")
     driver.is_approved = True
     driver.rejected_at = None
+    driver.rejection_reason = None
     db.session.commit()
     return jsonify({"driver": _driver_dict(driver)})
 
@@ -56,10 +67,23 @@ def approve_driver(driver_id):
 def reject_driver(driver_id):
     # Rejecting an approved driver also hides their rides from search.
     driver = _get_driver(driver_id)
+    data = request.get_json(silent=True) or {}
+    reason = v.text(data, "reason", min_len=3, max_len=300, required=False)
     driver.is_approved = False
     driver.rejected_at = utcnow()
+    driver.rejection_reason = reason
     db.session.commit()
     return jsonify({"driver": _driver_dict(driver)})
+
+
+@admin_bp.get("/admin/drivers/<int:driver_id>/documents/<doc_type>/file")
+@role_required("admin")
+def driver_document_file(driver_id, doc_type):
+    driver = _get_driver(driver_id)
+    doc = next((d for d in driver.documents if d.doc_type == doc_type), None)
+    if doc is None:
+        raise not_found("This driver has not uploaded that document.")
+    return send_document(doc)
 
 
 @admin_bp.get("/admin/companies")

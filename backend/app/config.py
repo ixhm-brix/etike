@@ -11,9 +11,9 @@ class BaseConfig:
     SECRET_KEY = os.environ.get("SECRET_KEY")
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
-    # Largest request the API accepts (car photos are the biggest, 3 MB).
+    # Largest request the API accepts (driver documents are the biggest, 5 MB).
     # Nginx has the same limits; this also covers direct calls to the API.
-    MAX_CONTENT_LENGTH = 4 * 1024 * 1024
+    MAX_CONTENT_LENGTH = 6 * 1024 * 1024
 
     # Bus booking is a future phase: off unless FEATURE_BUS_BOOKING=true.
     FEATURE_BUS_BOOKING = os.environ.get("FEATURE_BUS_BOOKING", "").strip().lower() in (
@@ -30,6 +30,9 @@ class BaseConfig:
 
     # Where uploaded car photos are saved (a Docker volume Nginx also reads).
     UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or "/uploads"
+    # Drivers' legal documents: personal data, a separate Docker volume that
+    # only the API can read (Nginx never serves it).
+    DOCUMENT_DIR = os.environ.get("DOCUMENT_DIR") or "/documents"
 
     # A confirmed booking can be cancelled until this many hours before departure.
     CANCEL_CUTOFF_HOURS = float(os.environ.get("CANCEL_CUTOFF_HOURS") or 2)
@@ -88,6 +91,7 @@ class TestConfig(BaseConfig):
     FEATURE_BUS_BOOKING = False
     DEMO_LOGIN = False
     UPLOAD_DIR = None  # each test that uploads sets its own temporary folder
+    DOCUMENT_DIR = None
     # Tests never talk to the real MoMo or SMS services.
     MOMO_SUBSCRIPTION_KEY = MOMO_API_USER = MOMO_API_KEY = MOMO_CALLBACK_URL = None
     MOMO_TARGET_ENVIRONMENT = "sandbox"

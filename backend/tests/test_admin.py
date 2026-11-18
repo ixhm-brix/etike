@@ -18,10 +18,12 @@ def test_only_admins_can_use_admin_tools(client, passenger):
     assert client.get("/api/admin/drivers").status_code == 401
 
 
-def test_admin_approves_and_rejects_drivers(client, make_admin):
+def test_admin_approves_and_rejects_drivers(client, make_admin, documents):
     admin = make_admin()
-    first = driver_id_of(register(client, role="driver"))
+    first_signup = register(client, role="driver")
+    first = driver_id_of(first_signup)
     second = driver_id_of(register(client, role="driver"))
+    documents(auth_header(first_signup))
 
     pending = client.get("/api/admin/drivers?status=pending", headers=admin).get_json()["drivers"]
     approved = client.post(f"/api/admin/drivers/{first}/approve", headers=admin)

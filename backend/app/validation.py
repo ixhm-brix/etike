@@ -118,6 +118,40 @@ def route_places(origin, destination):
     return origin, destination
 
 
+# Rwandan national ID numbers have 16 digits (spaces allowed when typed).
+NATIONAL_ID_RE = re.compile(r"^\d{16}$")
+GENDERS = ("female", "male")
+MIN_DRIVER_AGE = 18  # minimum age for a car driving licence
+
+
+def driver_details(data):
+    """The official details a driver fills in after signing up, as on their
+    national ID and driving licence.
+    The admin checks them against the uploaded ID before approving."""
+    national_id = re.sub(r"[\s-]", "", str(data.get("national_id_number") or ""))
+    if not NATIONAL_ID_RE.match(national_id):
+        raise bad_request("Enter your 16-digit national ID number.",
+                          {"national_id_number": "Must be the 16 digits on your ID."})
+    if not data.get("date_of_birth"):
+        raise bad_request("Enter your date of birth.",
+                          {"date_of_birth": "Enter your date of birth."})
+    born = iso_date(data.get("date_of_birth"), "date_of_birth")
+    today = local_now().date()
+    age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+    if not MIN_DRIVER_AGE <= age <= 100:
+        raise bad_request(f"Drivers must be at least {MIN_DRIVER_AGE} years old.",
+                          {"date_of_birth": f"You must be at least {MIN_DRIVER_AGE}."})
+    return {
+        "national_id_number": national_id,
+        "date_of_birth": born,
+        "gender": choice(data.get("gender"), "gender", GENDERS),
+        "home_district": place(data.get("home_district"), "home_district"),
+        "home_sector": text(data, "home_sector", min_len=2, max_len=60),
+        "license_number": "".join(text(data, "license_number", min_len=5,
+                                       max_len=30).split()).upper(),
+    }
+
+
 def iso_date(value, field="date"):
     try:
         return date.fromisoformat(str(value))

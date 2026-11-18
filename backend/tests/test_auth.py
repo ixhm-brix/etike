@@ -13,14 +13,15 @@ def test_register_passenger(client):
     assert "password_hash" not in body["user"]
 
 
-def test_register_driver_needs_licence(client):
+def test_driver_signs_up_like_everyone_else(client):
+    # Official details and documents come after, on the driver page.
     response = client.post(
         "/api/auth/register",
         json={"full_name": "Driver", "phone": new_phone(), "password": PASSWORD, "role": "driver"},
     )
 
-    assert response.status_code == 400
-    assert "license_number" in response.get_json()["error"]["fields"]
+    assert response.status_code == 201
+    assert response.get_json()["user"]["driver"]["status"] == "pending"
 
 
 def test_register_driver_starts_unapproved(client):
