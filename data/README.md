@@ -40,6 +40,52 @@ Put these in `raw/` as UTF-8 CSV with a header row. Every file is optional: the 
 
 **`routes.csv`** (optional): `origin`, `destination`, `source`. Routes are also taken from the trips, so this is only needed for routes that have no dated trips yet.
 
+## Districts and routes (what the live site uses now)
+
+Rides need only two files, both in `processed/`. `clean_data.py` writes them; `load_data.py` reads them.
+
+**`processed/districts.csv`**: the place names passengers can choose. `clean_data.py` writes it from the API's own list (`backend/app/places.py`: Kigali plus the 27 other districts), so it never needs hand-editing. `load_data.py` checks that it matches the API's list and warns if not.
+
+| Column | What it holds |
+|--------|---------------|
+| `name` | official name, e.g. `Huye` |
+| `also_written_as` | other spellings accepted in searches and raw files, separated by `; `, e.g. `Butare` |
+
+**`processed/routes.csv`**: one row per direction travelled (Kigali to Huye and Huye to Kigali are two rows). Made by `clean_data.py` from `raw/routes.csv` (same columns).
+
+| Column | What it holds | Required |
+|--------|---------------|----------|
+| `origin` | a `name` from `districts.csv` | yes |
+| `destination` | a different `name` from `districts.csv` | yes |
+| `source` | where we learned this route is travelled, matching a row in `sources.md` | yes |
+
+`load_data.py` adds routes that are not in the database yet and skips (with a message) any row whose places are not two different known districts. Drivers can also create a route by posting a ride on it.
+
+## Real drivers
+
+Drivers normally sign up on the website. To add drivers the team has met (with their consent), use `scripts/add_drivers.py` with a CSV kept in `raw/` (ignored by Git) or answer its prompts:
+
+| Column | Example of the format |
+|--------|-----------------------|
+| `full_name` | as on their licence |
+| `phone` | `078 123 4567` |
+| `license_number` | driving licence number |
+| `plate_number` | `RAD 123 B` |
+| `model` | `Toyota RAV4` |
+| `seats` | passenger seats, driver not counted (1 to 30) |
+
+```bash
+docker compose exec api python /data/scripts/add_drivers.py /data/raw/drivers.csv
+```
+
+Each driver starts **not approved**: an admin approves them on the Drivers page after checking the licence. The script prints a temporary password for each driver, once; give it to the driver privately. Rows that fail a check or are already registered are skipped with a message.
+
+## Consent
+
+Before using anything a person told us (an interview, a driver's details), ask for their consent and record in `sources.md` whether it was given and when. The signed or recorded consent itself goes in `data/consent/`, which Git ignores: never commit it. Keep a copy somewhere the team controls (for example a shared drive with restricted access).
+
+## Bus files (future phase)
+
 `clean_data.py` writes the same columns to `processed/`, plus `districts.csv`, the list of official place names and the other spellings it accepts. Duplicates (same company, route, date and time) are removed.
 
 `load_data.py` matches what is already in the database: companies by registration number, routes by origin and destination, trips by company, route and departure time. Running it twice adds nothing new. For a trip that is already loaded it only updates the fare, so seats already booked are kept.
