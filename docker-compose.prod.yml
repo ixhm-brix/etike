@@ -67,9 +67,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # To turn on HTTPS, point this line at nginx/https.conf.example
-      # (see docs/architecture.md, "HTTPS with Let's Encrypt").
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # HTTP until the certificate exists. For HTTPS set NGINX_CONF=https.conf
+      # in .env (see docs/deployment.md, "Turn on HTTPS"); this file stays
+      # unchanged, so `git pull` deploys keep working.
+      - ./nginx/${NGINX_CONF:-default.conf}:/etc/nginx/conf.d/default.conf:ro
       - ./frontend:/usr/share/nginx/html:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro

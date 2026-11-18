@@ -6,3 +6,6 @@ __pycache__/
 .env
 local_test_data.py
 
+local_test_photos/
+uploads/
+tests/

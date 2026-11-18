@@ -23,3 +23,12 @@ data/raw/*
 # Local test data tool: fake data must never be committed (real data only)
 backend/local_test_data.py
 backend/local_test_photos/
+
+# Consent records for real data: kept outside the repository (see data/sources.md)
+data/consent/
+
+# Uploaded car photos, if a local folder is ever used instead of the Docker volume
+uploads/
+
+# The server's own copy of nginx/https.conf.example with its domain filled in
+nginx/https.conf
