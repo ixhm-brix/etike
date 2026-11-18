@@ -103,13 +103,15 @@ To add real drivers the team has met (with their consent), from a CSV in `data/r
 docker compose exec api python /data/scripts/add_drivers.py /data/raw/drivers.csv
 ```
 
-They start unapproved; an admin approves them after checking their licence. Columns and consent rules are in [data/README.md](data/README.md).
+They start unapproved: each driver then logs in and uploads their documents, and an admin approves them after checking those. Columns and consent rules are in [data/README.md](data/README.md).
 
 `backend/local_test_data.py` (fake TEST accounts and rides for trying the site on a laptop) is ignored by Git and kept out of the server image: it never reaches the repository or a server.
 
 ## Logging in
 
-People log in with their **phone number and password**, and sign up on the **Create an account** page as a passenger or a driver. Drivers also give their licence number, which an admin checks before they can post rides.
+People log in with their **phone number and password**, and sign up on the **Create an account** page as a passenger or a driver.
+
+**Driver checks.** Drivers sign up like everyone else (name, phone, password). Once logged in, their driver page has two steps: **1. Your details**, as on their national ID and licence (national ID number, date of birth, at least 18, gender, home district and sector, driving licence number), and **2. Your documents**. In Rwanda, carrying passengers for money needs RURA authorisation, so a driver can't post rides until an admin approves them, and approval needs the details and six documents: national ID, driving licence, RURA authorisation (their own, or their taxi company's or cooperative's with proof they drive for it), vehicle registration card, insurance, and vehicle inspection certificate. Drivers upload them (photo or PDF, under 5 MB) on the driver page, with expiry dates where they expire. Admins see the details next to the documents on the Drivers page and open each document to compare; **Approve** stays locked until the details are in and all six documents are uploaded and in date, and **Reject** takes a reason the driver sees. Details can be corrected until approval. Correcting details or re-uploading a document sends a rejected driver back for review. Details are only shown to the driver and admins, never kept in the browser's login data, and never shown to passengers. The files are personal data: they are kept in a separate Docker volume (`documents`) that Nginx never serves, and only the driver and admins can download them through the API. The list is in `backend/app/driver_documents.py`; confirm it with RURA before going live.
 
 **Test accounts.** When `DEMO_LOGIN` is on, the login page also shows "Just looking around?" with **Passenger**, **Driver** and **Admin** buttons that log straight in to a test account. They only ever use accounts whose name starts with "TEST " (an approved driver for Driver). `DEMO_LOGIN` is on by default with `docker-compose.yml` (your laptop) and off with `docker-compose.prod.yml`: never switch it on for a public server, since it logs in without a password.
 
@@ -123,7 +125,7 @@ There are no built-in admin accounts or passwords. Create the first admin from t
 docker compose exec api flask --app wsgi create-admin
 ```
 
-Admins log in on the website like anyone else and land on **Drivers** (approve or reject drivers after checking their licence), **Companies** (verify bus companies) and **Refunds** (send money back for cancelled paid tickets). Only approved drivers' rides and verified companies' trips appear in search or can be booked. A driver can also be approved from the command line: `flask --app wsgi approve-driver 0781234567`.
+Admins log in on the website like anyone else and land on **Drivers** (check each driver's documents, then approve or reject them), **Companies** (verify bus companies) and **Refunds** (send money back for cancelled paid tickets). Only approved drivers' rides and verified companies' trips appear in search or can be booked. A driver can also be approved from the command line, with the same document check: `flask --app wsgi approve-driver 0781234567`.
 
 ## Booking, payment and cancelling
 
@@ -244,6 +246,7 @@ Dates and times are Rwanda local time, written like `2026-12-24` and `2026-12-24
 | `NGINX_CONF` | nginx (production) | `default.conf` (HTTP, the default) or `https.conf` once the certificate exists |
 | `BOOKING_HOLD_MINUTES` | api | How long an unpaid booking holds its seats (default 15) |
 | `UPLOAD_DIR` | api | Where car photos are saved (default `/uploads`, a Docker volume Nginx also serves) |
+| `DOCUMENT_DIR` | api | Where drivers' legal documents are saved (default `/documents`, a Docker volume only the API mounts) |
 | `DEMO_LOGIN` | api | `true` shows one-click test-account logins on the login page. On by default only in `docker-compose.yml`. With `FLASK_ENV=production` the API refuses to start if it is on |
 | `FEATURE_BUS_BOOKING` | api | `true` switches on bus booking, a future phase (default off: bus endpoints answer 404, bus bookings 400, and the website hides bus options) |
 | `CANCEL_CUTOFF_HOURS` | api | A confirmed booking can be cancelled until this many hours before departure (default 2) |
