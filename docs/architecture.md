@@ -26,7 +26,7 @@ MoMo and Africa's Talking are optional: without their keys, payments answer 503 
 
 ## Scope
 
-The platform currently covers **private and shared rides** between districts: drivers post rides, passengers book them and pay the driver directly. **Bus booking is a future phase**: bus companies would need a full operator system (fleets, schedules, ticket scanning), which is a separate product. Its modules below are marked *future phase*. They stay in the code and are tested, but are switched off with `FEATURE_BUS_BOOKING` (default off, `app/features.py`):
+The platform currently covers **private and shared rides** between districts: drivers post rides, passengers book them, the driver starts and ends the ride in the app, and passengers then pay with MTN MoMo. **Bus booking is a future phase**: bus companies would need a full operator system (fleets, schedules, ticket scanning), which is a separate product. Its modules below are marked *future phase*. They stay in the code and are tested, but are switched off with `FEATURE_BUS_BOOKING` (default off, `app/features.py`):
 
 - bus endpoints (`/api/trips...`) and admin company endpoints answer 404 "Bus booking is not available yet";
 - `POST /api/bookings` answers 400 for a bus booking;
@@ -91,7 +91,7 @@ Rules the service applies:
 
 ## Paying for a booking *(future phase, behind FEATURE_BUS_BOOKING)*
 
-Only **bus tickets** are paid on the website. A new bus booking is `pending` and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default). The passenger pays with MTN MoMo and approves on their own phone:
+**Rides** are paid after the ride (next section). **Bus tickets** are paid before travel: a new bus booking is `pending` and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default). The passenger pays with MTN MoMo and approves on their own phone:
 
 ```mermaid
 sequenceDiagram
@@ -145,7 +145,7 @@ Rules the payment service applies:
 
 ## Rides, cancelling and refunds
 
-- **Shared and private rides are not paid on the website.** The booking is `confirmed` as soon as the seats are taken (under the same row lock), and the passenger pays the driver during or after the ride. `POST /api/payments` refuses ride bookings.
+- **Rides are paid after the ride, like a taxi app.** The booking is `confirmed` as soon as the seats are taken (under the same row lock); no ticket is needed. The driver taps Start ride (`ride_offers.started_at`, allowed from one hour before departure and only with a passenger) and End ride (`ended_at`); `RideOffer.progress` is `scheduled`, `in_progress` or `ended`. Only then does `POST /api/payments` accept the booking (`Booking.can_pay`), for the server's price. A ride payment that fails can be tried again (the same `payments` row gets a new reference); it never cancels the booking. When it succeeds, the driver's My trips shows it (the page checks every 10 seconds) and `sms_service.ride_paid` texts the driver and the passenger. A ride that has started can't be cancelled.
 - **Cancelling.** An unpaid booking can be cancelled at any time. A confirmed booking can be cancelled until `CANCEL_CUTOFF_HOURS` (2 by default) before departure; after that the API answers 409 `too_late_to_cancel`. Cancelling returns the seats and reopens a `full` ride.
 - **Refunds.** Cancelling a paid bus ticket sets `payments.refund_status` to `due` (the payment itself stays `success`, because the money was received). Admins list refunds due, send the money to the passenger's MoMo number by hand, and mark each one `refunded`. Automatic refunds would need MoMo's Disbursements product and are not built.
 - **SMS.** The passenger, and the driver for a ride, are told about a confirmed booking and about a cancellation.

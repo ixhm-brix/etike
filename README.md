@@ -2,7 +2,7 @@
 
 **Live site: TBD** (to be filled in once the server is up; see [docs/deployment.md](docs/deployment.md))
 
-ETIKE is a website for travelling between districts in Rwanda. Drivers post the trips they are making; passengers book a **private car** (the whole car, one price shown up front) or a **shared seat** in a car already going their way, and pay the driver during or after the ride. Users are passengers, drivers and admins.
+ETIKE is a website for travelling between districts in Rwanda. Drivers post the trips they are making; passengers book a **private car** (the whole car, one price shown up front) or a **shared seat** in a car already going their way, and pay with MTN MoMo in the app when the ride ends, like a taxi app. Users are passengers, drivers and admins.
 
 **Current scope: private and shared rides between districts.** Bus booking is a future phase (see [Roadmap](#roadmap)); its code is kept but switched off with `FEATURE_BUS_BOOKING`.
 
@@ -129,7 +129,11 @@ Admins log in on the website like anyone else and land on **Drivers** (check eac
 
 ## Booking, payment and cancelling
 
-**Shared and private rides** (current scope) are paid to the driver, in cash or by MoMo, during or after the ride. Nothing is paid on the website: the booking is **confirmed** straight away, and both the passenger and the driver get an SMS with the amount. Shared rides take a number of seats; a private ride takes the whole car.
+**Shared and private rides** (current scope) work like a taxi app:
+
+1. **Book.** Tapping a ride opens a review screen: the car's photos, the driver's name and rating, from and to, day and time, the price, and how you pay (MTN MoMo after the ride) and until when you can cancel for free. **Confirm booking** books it at once; a blue banner at the top confirms it. Shared rides take a number of seats; a private ride takes the whole car. No ticket is needed: the driver sees the booking.
+2. **Ride.** On the driver's phone, **My trips** shows today's booked rides. The driver taps **Start ride** (from one hour before departure) and **End ride** on arrival. The passenger's My bookings follows along ("On the way", then "Ride ended").
+3. **Pay.** When the ride ends, each passenger sees **Pay with MoMo** and pays the fare in the app (a failed payment can be tried again). The driver's My trips shows each payment as it comes in, with a banner, and both get an SMS when SMS is set up.
 
 **Bus tickets** (future phase, only with `FEATURE_BUS_BOOKING=true`) are paid before travel:
 
@@ -143,13 +147,13 @@ After a shared or private ride has left, the passenger can rate the driver once,
 
 **Seats.** On buses (future phase), passengers choose their seats on a seat map drawn as rows of 2 + aisle + 2. Shared rides just take a number of seats. The map is drawn from the number of seats, so it is a close guide, not each model's exact layout. A private ride takes every seat. Each seat is held in `booking_seats`, whose unique constraints make it impossible for two bookings to hold the same seat.
 
-**Tickets.** Every confirmed booking has a ticket page with a QR code (made for bus boarding; rides have one too). Scanning it opens `/verify.html`, which says **Valid** or **Not valid** (cancelled, unpaid or already left) and shows the trip, seats and the passenger's first name and initial. The QR code holds a signed link, so it can't be forged, and validity is checked live, so a cancelled ticket stops working. The link uses the address the page was opened with: to scan with a phone on the same Wi-Fi, open the site on the laptop by its network address (for example `http://192.168.1.20`), not `localhost`.
+**Tickets** (bus phase only; rides need no ticket). A confirmed bus booking has a ticket page with a QR code. Scanning it opens `/verify.html`, which says **Valid** or **Not valid** (cancelled, unpaid or already left) and shows the trip, seats and the passenger's first name and initial. The QR code holds a signed link, so it can't be forged, and validity is checked live, so a cancelled ticket stops working. The link uses the address the page was opened with: to scan with a phone on the same Wi-Fi, open the site on the laptop by its network address (for example `http://192.168.1.20`), not `localhost`.
 
 **Car photos.** Drivers add up to 3 photos per car on the driver page (JPEG, PNG or WebP, under 3 MB; the server checks the file's content, not its name). Passengers see them on shared and private ride results and on the booking page. Files live in the `uploads` Docker volume and Nginx serves them at `/uploads/`.
 
 ## Payments with MTN MoMo (sandbox)
 
-Only bus tickets are paid on the website, so MoMo payments are part of the bus phase: with `FEATURE_BUS_BOOKING` off they are not used. The integration is kept and tested.
+Rides are paid with MoMo after the driver ends them; bus tickets (future phase) before travel.
 
 Payments use the MTN MoMo Collections API ("request to pay"): the passenger gets a prompt on their phone and approves with their MoMo PIN.
 
@@ -209,6 +213,9 @@ All responses are JSON. Errors always look like `{"error": {"code": "...", "mess
 | `POST /api/drivers/vehicles` | driver | Add a vehicle (`plate_number`, `model`, `seats`) |
 | `POST /api/drivers/vehicles/<id>/photos` | driver | Upload a car photo (form field `photo`) |
 | `DELETE /api/drivers/vehicles/<id>/photos/<photo_id>` | driver | Remove a car photo |
+| `GET /api/drivers/rides` | driver | My rides from two days ago onwards, with passengers and what each has paid |
+| `POST /api/rides/<id>/start` | driver | Start my ride (from one hour before departure; needs a passenger) |
+| `POST /api/rides/<id>/end` | driver | End my ride: its passengers can now pay |
 | `POST /api/rides` | approved driver | Post a ride (`vehicle_id`, `origin`, `destination`, `ride_type`, `departure_time`, `price`, `seats_available`) |
 | `POST /api/bookings` | passenger | Book (`trip_id` or `offer_id`, and `seat_numbers` chosen on the map, or `seats` for the lowest free ones). A bus booking starts `pending` with its seats held; a ride is `confirmed` at once. The price is worked out by the server |
 | `GET /api/bookings/mine` | logged in | My bookings |

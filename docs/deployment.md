@@ -125,7 +125,7 @@ Production will use the Rwanda host with Rwanda live keys (see "Going live" belo
    Put the two lines it prints (`MOMO_API_USER`, `MOMO_API_KEY`) in `.env` and restart again.
 4. Once HTTPS is on (step 6), set `MOMO_CALLBACK_URL=https://YOUR_DOMAIN/api/payments/callback` and restart. MoMo calls it when a payment finishes, so the booking is confirmed even if the passenger closes the payment page (the page also checks the status itself). It must be the live `https://` domain: MoMo cannot reach `localhost`. We have not yet tested the callback against a live URL: if a request to pay is refused with it set, remove it and tell the team.
 
-Note: rides are paid to the driver, so MoMo is only used by bus tickets, which are off (`FEATURE_BUS_BOOKING=false`). To test MoMo on the server, switch the bus flag on for the test only.
+Rides are paid with MoMo after the driver ends them, so to test the callback on the server: book a ride as a passenger, start and end it as its driver, then pay.
 
 If MoMo answers "Access denied due to invalid subscription key", the key is from the other portal, the Collections subscription is not active, or the key was regenerated.
 
