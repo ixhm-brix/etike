@@ -29,6 +29,8 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -120,7 +122,9 @@ a {
   gap: 0.25rem;
 }
 .topbar-links a {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
   padding: 0.5rem 0.85rem;
   border-radius: 999px;
   font-size: 0.9375rem;
@@ -291,7 +295,7 @@ a {
   background: var(--white);
 }
 .field span {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--gray-700);
 }
@@ -370,7 +374,7 @@ a {
 }
 .map-credit {
   margin-top: 0.25rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--gray-500);
 }
 
@@ -681,13 +685,14 @@ a {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--white);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
 }
 .footer ul {
   display: grid;
-  gap: 0.5rem;
 }
 .footer a {
+  display: inline-block;
+  padding-block: 0.7rem;
   text-decoration: none;
   transition: color 150ms ease-out;
 }
@@ -773,6 +778,9 @@ a {
   color: inherit;
   font: inherit;
   padding: 0.5rem 0.85rem;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   text-decoration: none;
   cursor: pointer;
@@ -839,7 +847,7 @@ a {
   color: var(--gray-700);
 }
 .field-hint {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--gray-500);
   margin-top: -0.4rem;
   padding-inline: 0.25rem;
@@ -900,7 +908,7 @@ a {
 }
 .result-note {
   text-align: right;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--gray-500);
 }
 .result-actions {
@@ -915,8 +923,11 @@ a {
 .btn-sm {
   font-size: 0.9375rem;
   padding: 0.6rem 1.1rem;
+  min-height: 2.75rem;
   text-decoration: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-gray {
   border: 0;
@@ -942,7 +953,7 @@ a {
   display: inline-block;
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   background: var(--black);
   color: var(--white);
@@ -1145,7 +1156,7 @@ a {
   border-color: var(--gray-200);
   background: transparent;
   color: var(--gray-500);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: default;
 }
@@ -1220,8 +1231,9 @@ a {
   position: absolute;
   top: 0.25rem;
   right: 0.25rem;
-  padding: 0.15rem 0.45rem;
-  font-size: 0.6875rem;
+  padding: 0.25rem 0.6rem;
+  min-height: 2rem;
+  font-size: 0.8125rem;
   background: rgb(255 255 255 / 0.9);
 }
 .file-label input {
@@ -1278,7 +1290,7 @@ a {
 }
 .doc-actions input[type="date"] {
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 1rem;
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--gray-200);
   border-radius: var(--radius);
@@ -1286,7 +1298,7 @@ a {
 }
 .reject-reason {
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 1rem;
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--gray-200);
   border-radius: var(--radius);
@@ -1406,7 +1418,7 @@ html:not(.has-demo) [data-feature="demo"] {
 }
 .coming-soon {
   margin-top: 0.5rem;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--gray-500);
 }
 .sandbox-note {
@@ -1441,7 +1453,7 @@ html:not(.has-demo) [data-feature="demo"] {
   gap: 0.5rem 1rem;
 }
 .ticket dt {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--gray-500);
 }
 .ticket dd {
