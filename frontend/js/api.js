@@ -66,9 +66,8 @@ const api = (() => {
 
   // Which features are on (see backend/app/features.py). Bus booking is a
   // future phase, so bus-only parts of pages stay hidden unless it is on.
-  const features = request("/config")
-    .then((data) => data.features)
-    .catch(() => ({ bus_booking: false }));
+  const config = request("/config").catch(() => ({ features: { bus_booking: false } }));
+  const features = config.then((data) => data.features);
   features.then((f) => {
     document.documentElement.classList.toggle("has-bus", Boolean(f.bus_booking));
     document.documentElement.classList.toggle("has-demo", Boolean(f.demo_login));
@@ -77,6 +76,8 @@ const api = (() => {
   return {
     ApiError,
     features: () => features,
+    // Booking rules from the server, e.g. { cancel_cutoff_hours: 2 }.
+    config: () => config,
     get: (path) => request(path),
     // options: { timeoutMs } for slow requests such as starting a payment.
     post: (path, body, options) => request(path, { method: "POST", body: body || {}, ...options }),

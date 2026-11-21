@@ -2,9 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Post a ride – ETIKE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>My trips – ETIKE</title>
   <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,8 +31,15 @@
   </header>
 
   <main id="main" class="page wrap page-narrow">
-    <h1>Post a ride</h1>
+    <h1>My trips</h1>
     <p class="page-sub" id="status"></p>
+
+    <section class="block" aria-labelledby="trips-title" id="trips-block" hidden>
+      <h2 id="trips-title">Today and next</h2>
+      <p class="block-note">Tap <strong>Start ride</strong> when you set off and <strong>End ride</strong> when you arrive. Your passengers then pay with MTN MoMo, and you see each payment here.</p>
+      <ul class="trips" id="trips"></ul>
+      <p class="trip-msg" id="trips-msg" role="alert"></p>
+    </section>
 
     <section class="block" aria-labelledby="details-title">
       <h2 id="details-title">1. Your details</h2>
@@ -184,5 +195,6 @@
   <script src="/js/api.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/offer.js"></script>
+  <script src="/js/driver-trips.js"></script>
 </body>
 </html>

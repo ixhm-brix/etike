@@ -26,7 +26,7 @@
       b.booking_type === "bus"
         ? [b.seat_numbers.length > 1 ? "Seats" : "Seat", b.seat_numbers.join(", ")]
         : ["Seats", String(b.seats_booked)],
-      [b.pay_driver ? "Pay the driver" : "Paid", ui.money(b.total_price)],
+      ["Paid", ui.money(b.total_price)],
     ];
     const dl = document.getElementById("details");
     rows.forEach(([k, v]) => {

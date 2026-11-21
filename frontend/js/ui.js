@@ -106,5 +106,22 @@ const ui = (() => {
     }
   }
 
-  return { money, when, clock, day, date, today, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
+  // A banner at the top of the screen that confirms something happened,
+  // e.g. "Your ride is booked". Hides itself after a few seconds.
+  function toast(title, text = "", tone = "info") {
+    document.querySelector(".toast")?.remove();
+    const box = el("div", `toast is-hidden${tone === "good" ? " is-good" : ""}`);
+    box.setAttribute("role", "status");
+    box.append(title);
+    if (text) box.append(el("span", null, text));
+    document.body.append(box);
+    requestAnimationFrame(() => requestAnimationFrame(() => box.classList.remove("is-hidden")));
+    setTimeout(() => {
+      box.classList.add("is-hidden");
+      setTimeout(() => box.remove(), 400);
+    }, 6000);
+    box.addEventListener("click", () => box.classList.add("is-hidden"));
+  }
+
+  return { money, when, clock, day, date, today, toast, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
 })();
