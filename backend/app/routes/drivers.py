@@ -13,6 +13,7 @@ from ..errors import ApiError, bad_request, conflict, not_found
 from ..extensions import db
 from ..models import Driver, DriverDocument, RideOffer, Route, Vehicle, VehiclePhoto
 from ..models.user import utcnow
+from ..services import ride_service
 
 drivers_bp = Blueprint("drivers", __name__)
 
@@ -240,6 +241,28 @@ def _own_vehicle(vehicle_id):
     if vehicle is None or vehicle.driver_id != current_user().driver.driver_id:
         raise not_found("Vehicle not found in your account.")
     return vehicle
+
+
+@drivers_bp.get("/drivers/rides")
+@role_required("driver")
+def my_rides():
+    """The driver's rides with their passengers and payments."""
+    return jsonify({"rides": ride_service.driver_rides(current_user().driver)})
+
+
+@drivers_bp.post("/rides/<int:offer_id>/start")
+@role_required("driver")
+def start_ride(offer_id):
+    offer = ride_service.start(current_user().driver, offer_id)
+    return jsonify({"ride": ride_service.ride_dict(offer)})
+
+
+@drivers_bp.post("/rides/<int:offer_id>/end")
+@role_required("driver")
+def end_ride(offer_id):
+    """End the ride: its passengers can now pay with MoMo."""
+    offer = ride_service.end(current_user().driver, offer_id)
+    return jsonify({"ride": ride_service.ride_dict(offer)})
 
 
 @drivers_bp.post("/rides")

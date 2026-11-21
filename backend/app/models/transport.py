@@ -103,10 +103,21 @@ class RideOffer(db.Model):
     price = db.Column(db.Integer, nullable=False)
     seats_available = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(10), nullable=False, default="open")
+    # Set by the driver's Start ride and End ride buttons. Passengers pay
+    # with MoMo once the ride has ended.
+    started_at = db.Column(db.DateTime(timezone=True))
+    ended_at = db.Column(db.DateTime(timezone=True))
 
     driver = db.relationship("Driver")
     vehicle = db.relationship("Vehicle")
     route = db.relationship("Route")
+
+    @property
+    def progress(self):
+        """"scheduled", "in_progress" or "ended"."""
+        if self.ended_at:
+            return "ended"
+        return "in_progress" if self.started_at else "scheduled"
 
     def to_dict(self):
         return {
@@ -118,6 +129,7 @@ class RideOffer(db.Model):
             "price": self.price,
             "seats_available": self.seats_available,
             "status": self.status,
+            "progress": self.progress,
             "driver_id": self.driver_id,
             "driver_name": self.driver.user.full_name,
             "driver_rating": float(self.driver.avg_rating) if self.driver.avg_rating else None,

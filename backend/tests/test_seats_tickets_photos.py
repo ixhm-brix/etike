@@ -226,11 +226,12 @@ def test_no_ticket_before_payment_or_for_others(client, make_trip, passenger):
     assert other.status_code == 404
 
 
-def test_ride_bookings_have_tickets_too(client, make_offer, passenger):
+def test_rides_have_no_ticket(client, make_offer, passenger):
+    # Like a taxi app: the booking is the proof, and the driver sees it.
     booking = book(client, passenger, offer_id=make_offer()).get_json()["booking"]
 
     assert client.get(f"/api/bookings/{booking['booking_id']}/ticket",
-                      headers=passenger).status_code == 200
+                      headers=passenger).status_code == 404
 
 
 # ---- Car photos ----

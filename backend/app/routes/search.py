@@ -2,7 +2,7 @@
 
 from datetime import datetime, time, timedelta
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from .. import validation as v
 from ..errors import not_found
@@ -18,8 +18,12 @@ search_bp = Blueprint("search", __name__)
 
 @search_bp.get("/config")
 def site_config():
-    """Which features are switched on, so the website can hide the others."""
-    return jsonify({"features": enabled_features()})
+    """Which features are switched on, so the website can hide the others,
+    and the booking rules the pages explain."""
+    return jsonify({
+        "features": enabled_features(),
+        "cancel_cutoff_hours": current_app.config["CANCEL_CUTOFF_HOURS"],
+    })
 
 
 @search_bp.get("/places")

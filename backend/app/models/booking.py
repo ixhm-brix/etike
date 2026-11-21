@@ -49,6 +49,13 @@ class Booking(db.Model):
         hours = current_app.config["CANCEL_CUTOFF_HOURS"]
         return target.departure_time - timedelta(hours=hours)
 
+    @property
+    def can_pay(self):
+        """A ride is paid once it has ended, if not paid (or paying) yet."""
+        if self.offer is None or self.status != "confirmed" or self.offer.ended_at is None:
+            return False
+        return self.payment is None or self.payment.status == "failed"
+
     def to_dict(self):
         target = self.trip or self.offer
         return {
@@ -69,8 +76,10 @@ class Booking(db.Model):
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "payment_status": self.payment.status if self.payment else None,
             "refund_status": self.payment.refund_status if self.payment else None,
-            # Rides are paid to the driver, not on the website.
-            "pay_driver": self.offer_id is not None,
+            # Rides are paid with MoMo after the driver ends the ride.
+            "pay_after_ride": self.offer_id is not None,
+            "ride_progress": self.offer.progress if self.offer else None,
+            "can_pay": self.can_pay,
             "cancel_until": self.cancel_until.isoformat(timespec="minutes"),
             "driver_id": self.offer.driver_id if self.offer else None,
             "rating": self.rating.to_dict() if self.rating else None,
