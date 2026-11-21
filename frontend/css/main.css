@@ -711,6 +711,48 @@ a {
   border-top: 1px solid rgb(255 255 255 / 0.14);
 }
 
+/* ---------- Phones and tablets: the map above the form ---------- */
+/* One column: title, map, the route summary, then the form, so the route
+   shows on the map right above the fields while you choose. The intro
+   text and map credits move below the form. Wider screens keep the form on
+   the left and the map on the right. */
+@media (max-width: 59.99rem) {
+  .hero {
+    gap: 0;
+    padding-top: 1.5rem;
+  }
+  .hero-left,
+  .hero .map,
+  .hero .map figcaption {
+    display: contents;
+  }
+  .hero .map-canvas {
+    order: 1;
+    margin-top: 1rem;
+    padding: 0.5rem;
+  }
+  .hero .trip-summary {
+    order: 2;
+    margin-top: 0.5rem;
+  }
+  .hero .trip {
+    order: 3;
+    margin-top: 1rem;
+    max-width: none;
+  }
+  .hero .hero-sub {
+    order: 4;
+    margin-top: 1.5rem;
+  }
+  .hero .coming-soon {
+    order: 5;
+  }
+  .hero .map-credit {
+    order: 6;
+    margin-top: 1rem;
+  }
+}
+
 /* ---------- Larger screens ---------- */
 
 @media (min-width: 60rem) {
