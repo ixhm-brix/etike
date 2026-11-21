@@ -39,8 +39,8 @@ No tables or data are removed; the booking service stays generic and still suppo
 
 | Module | Where | What it does |
 |--------|-------|--------------|
-| Models | `app/models/` | `users`, `drivers`, `vehicles`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, `payments`, `ratings`, with CHECK constraints for allowed values, seat counts and scores |
-| Auth | `app/auth/` | Log in with an SMS code (no account to create) or a password, driver sign-up, `/me`. JWT tokens (Flask-JWT-Extended), Werkzeug password hashes, login codes stored as keyed hashes, and the `role_required` decorator |
+| Models | `app/models/` | `users`, `drivers`, `vehicles`, `vehicle_photos`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, `booking_seats`, `payments`, `ratings`, `login_codes`, with CHECK constraints for allowed values, seat counts and scores |
+| Auth | `app/auth/` | Sign up (passenger or driver) and log in with phone number and password; `/me`. One-click test-account login only when `DEMO_LOGIN` is on (never in production). SMS-code login exists in the API but is not on the website. JWT tokens valid 12 hours (Flask-JWT-Extended), Werkzeug password hashes, login codes stored as keyed hashes, and the `role_required` decorator |
 | Search | `app/routes/search.py` | Places, routes, ride offers, and (future phase) bus trips. Public. Also `GET /api/config` |
 | Drivers | `app/routes/drivers.py` | Vehicles, and posting rides (approved drivers only) |
 | Bookings | `app/routes/bookings.py`, `app/services/booking_service.py` | Book (pending, seats held), confirm, cancel and release expired holds, without double booking |
@@ -52,7 +52,7 @@ No tables or data are removed; the booking service stays generic and still suppo
 | Places | `app/places.py` | The 28 places people travel between (Kigali's three districts count as one) and old town names such as Butare for Huye |
 | Commands | `app/cli.py` | `flask create-admin`, `flask approve-driver`, `flask expire-bookings`, `flask momo-create-user` (sandbox) |
 
-Data gets in through `data/scripts/clean_data.py` and `load_data.py`, from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded.
+Data gets in through `data/scripts/clean_data.py` and `load_data.py` (districts and routes), and `add_drivers.py` (real drivers who gave consent, created unapproved), from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded. `backend/local_test_data.py` makes fake TEST data for laptops; it is ignored by Git and by the Docker build.
 
 ## Booking without double booking
 
@@ -163,6 +163,15 @@ Seat maps and QR tickets were built for buses and are part of the future phase; 
 - **Local**: `docker-compose.yml`. Flask dev server with auto-reload, code mounted from your machine.
 - **Staging and production**: `docker-compose.prod.yml` on a VPS. Gunicorn, restart policies, secrets from the server's `.env`. Staging and production are separate servers (or separate folders with separate `.env` files).
 
+## Production safety
+
+- Every secret comes from environment variables (the server's `.env`, never in Git). With `FLASK_ENV=production`, `create_app` refuses to start if `DATABASE_URL`, `SECRET_KEY` or `JWT_SECRET_KEY` is missing, if a secret is `change-me` or under 32 characters, if both secrets are the same, or if `DEMO_LOGIN` is on. Debug is always off.
+- Flask trusts Nginx's `X-Forwarded-Proto` and `X-Forwarded-Host` (Werkzeug `ProxyFix`, production only), so links it builds, such as ticket QR codes, use `https://` and the real domain.
+- CORS is off unless `CORS_ORIGINS` lists sites: the pages and API share one domain.
+- Limits: Nginx allows 64 KB per request (4 MB on the photo upload address) and 10 requests a minute per IP address on `/api/auth/`; Flask refuses requests over 4 MB itself as well (413).
+- Every endpoint checks its input in `app/validation.py` and answers 400 naming the field. Admin endpoints need the admin role; bookings, payments and tickets are only shown to their owner.
+- Nginx sends a Content Security Policy, no-framing, no-sniffing and referrer headers; the HTTPS config adds HSTS.
+
 ## CI/CD
 
 - `ci.yml` runs on every pull request and every push to `main`: ruff, then `flask db upgrade` against a Postgres service container, then pytest on that database.
@@ -183,3 +192,6 @@ Each new module gets a blueprint in `backend/app/routes/`, models in `backend/ap
 | automatic refunds | Sending refunds through MoMo Disbursements instead of by hand |
 | pickup details | A pickup point on each ride, and sharing phone numbers between driver and passenger |
 | bus company staff | Companies managing their own trips |
+| live MoMo | MTN Rwanda live keys after MTN approves a business account |
+| USSD | Search and book from a basic phone with a short code |
+| change and reset password | Let people change their password, and reset a forgotten one (neither exists yet, so drivers added by `add_drivers.py` keep the temporary password they were given) |

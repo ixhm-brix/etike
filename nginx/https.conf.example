@@ -1,6 +1,8 @@
-# HTTPS version of default.conf. Replace YOUR_DOMAIN with the real domain,
-# then mount this file instead of default.conf in docker-compose.prod.yml.
-# Steps are in docs/architecture.md.
+# HTTPS version of default.conf. On the server:
+#   cp nginx/https.conf.example nginx/https.conf   (git ignores https.conf)
+#   replace YOUR_DOMAIN (4 places), then set NGINX_CONF=https.conf in .env.
+# Steps are in docs/deployment.md, "Turn on HTTPS".
+# Keep the locations below the same as default.conf when either changes.
 
 # Login and sign-up: at most 10 requests a minute per IP address (with a
 # short burst allowed), to slow down password guessing. Over the limit
@@ -48,6 +50,7 @@ server {
         alias /var/www/uploads/;
         expires 7d;
         add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header Content-Security-Policy "default-src 'none'" always;
     }
@@ -85,5 +88,21 @@ server {
         # version each time. ("expires" keeps the security headers above.)
         expires -1;
         try_files $uri $uri/ /index.html;
+    }
+
+    # CSS and JS change with every deploy: browsers keep a copy but check
+    # for a newer one each time (a quick 304 when nothing changed).
+    location ~* \.(css|js)$ {
+        add_header Cache-Control "no-cache";
+        # add_header in a location drops the server-level ones, so repeat them.
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    location ~* \.(svg|png|jpg|webp|woff2)$ {
+        expires 7d;
+        add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
     }
 }

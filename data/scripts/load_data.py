@@ -6,6 +6,10 @@ Safe to run more than once: rows that are already in the database are
 matched and updated, never added twice. Run clean_data.py first. A missing
 file is reported and skipped; nothing is invented to fill the gap.
 
+Districts are a fixed list in the API (backend/app/places.py). This script
+checks data/processed/districts.csv against that list and refuses to load
+routes between places the API does not know.
+
 Uses DATABASE_URL like the API does. With Docker:
 
     docker compose exec api python /data/scripts/load_data.py
@@ -24,6 +28,7 @@ sys.path.insert(0, str(_backend if _backend.exists() else Path.cwd()))
 from app import create_app  # noqa: E402
 from app.extensions import db  # noqa: E402
 from app.models import BusCompany, BusTrip, Route  # noqa: E402
+from app.places import PLACES  # noqa: E402
 
 BUS_PAUSED = ("Skipped {name}: bus booking is a future phase and FEATURE_BUS_BOOKING is off. "
               "The data stays in data/processed/ for when it comes back.")
@@ -32,6 +37,7 @@ BUS_PAUSED = ("Skipped {name}: bus booking is a future phase and FEATURE_BUS_BOO
 def main():
     app = create_app()
     with app.app_context():
+        check_districts()
         bus = app.config["FEATURE_BUS_BOOKING"]
         if bus:
             companies = load_companies()
@@ -53,6 +59,22 @@ def read(name):
         return None
     with path.open(newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
+
+def check_districts():
+    """districts.csv must list exactly the places the API uses."""
+    rows = read("districts.csv")
+    if rows is None:
+        return
+    in_file = {r["name"] for r in rows}
+    if in_file == set(PLACES):
+        print(f"Districts: {len(in_file)}, the same as the API's list.")
+        return
+    for name in sorted(in_file - set(PLACES)):
+        print(f"  Warning: district {name!r} in districts.csv is not in the API's list.")
+    for name in sorted(set(PLACES) - in_file):
+        print(f"  Warning: district {name!r} is missing from districts.csv.")
+    print("  Run clean_data.py again to rewrite districts.csv from the API's list.")
 
 
 def load_companies():
@@ -85,15 +107,21 @@ def load_routes():
     by_pair = {(r.origin, r.destination): r for r in db.session.query(Route)}
     if rows is None:
         return by_pair
-    added = 0
+    added = skipped = 0
     for row in rows:
         pair = (row["origin"], row["destination"])
+        if pair[0] not in PLACES or pair[1] not in PLACES or pair[0] == pair[1]:
+            # Only clean_data.py output belongs here; it checks the names.
+            print(f"  Skipped route {pair[0]!r} to {pair[1]!r}: not two different known districts.")
+            skipped += 1
+            continue
         if pair not in by_pair:
             by_pair[pair] = Route(origin=pair[0], destination=pair[1])
             db.session.add(by_pair[pair])
             added += 1
     db.session.flush()
-    print(f"Routes: {added} added, {len(rows) - added} already there.")
+    print(f"Routes: {added} added, {len(rows) - added - skipped} already there, "
+          f"{skipped} skipped.")
     return by_pair
 
 

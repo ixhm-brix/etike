@@ -1,5 +1,7 @@
 # ETIKE Intercity Travel Platform
 
+**Live site: TBD** (to be filled in once the server is up; see [docs/deployment.md](docs/deployment.md))
+
 ETIKE is a website for travelling between districts in Rwanda. Drivers post the trips they are making; passengers book a **private car** (the whole car, one price shown up front) or a **shared seat** in a car already going their way, and pay the driver during or after the ride. Users are passengers, drivers and admins.
 
 **Current scope: private and shared rides between districts.** Bus booking is a future phase (see [Roadmap](#roadmap)); its code is kept but switched off with `FEATURE_BUS_BOOKING`.
@@ -18,6 +20,11 @@ It is a BSc Software Engineering project by Team 3 at African Leadership Univers
 
 To try them locally, set `FEATURE_BUS_BOOKING=true` in `.env` and restart. Bus data collection is paused until this phase starts (see [data/README.md](data/README.md)).
 
+**Later:**
+
+- **Live MTN MoMo (Rwanda).** Payments run on MTN's sandbox today. Going live needs a MoMo business account approved by MTN Rwanda and its live keys (see [docs/deployment.md](docs/deployment.md#going-live)).
+- **USSD.** Searching and booking from a basic phone with a short code, for travellers without a smartphone or mobile data.
+
 ## Tech stack
 
 - Frontend: HTML, CSS, JavaScript (no frameworks)
@@ -32,7 +39,7 @@ To try them locally, set `FEATURE_BUS_BOOKING=true` in `.env` and restart. Bus d
 You need Docker with Compose.
 
 ```bash
-git clone <repo-url> etike && cd etike
+git clone https://github.com/ixhm-brix/etike.git etike && cd etike
 docker compose up --build
 ```
 
@@ -89,6 +96,16 @@ docker compose exec api python /data/scripts/load_data.py    # loads it; safe to
 ```
 
 Missing files are reported and skipped. The scripts never make up data to fill a gap.
+
+To add real drivers the team has met (with their consent), from a CSV in `data/raw/` or by answering prompts:
+
+```bash
+docker compose exec api python /data/scripts/add_drivers.py /data/raw/drivers.csv
+```
+
+They start unapproved; an admin approves them after checking their licence. Columns and consent rules are in [data/README.md](data/README.md).
+
+`backend/local_test_data.py` (fake TEST accounts and rides for trying the site on a laptop) is ignored by Git and kept out of the server image: it never reaches the repository or a server.
 
 ## Logging in
 
@@ -218,18 +235,19 @@ Dates and times are Rwanda local time, written like `2026-12-24` and `2026-12-24
 | Variable | Used by | Purpose |
 |----------|---------|---------|
 | `FLASK_ENV` | api | `development`, `testing` or `production` (default `production`) |
-| `SECRET_KEY` | api | Flask's secret key. Required in production |
-| `JWT_SECRET_KEY` | api | Signs login tokens. Use a different random value from `SECRET_KEY`. Required in production |
+| `SECRET_KEY` | api | Flask's secret key. Required in production: at least 32 random characters |
+| `JWT_SECRET_KEY` | api | Signs login tokens (valid 12 hours). Required in production: at least 32 random characters, different from `SECRET_KEY` |
 | `DATABASE_URL` | api | SQLAlchemy URL, e.g. `postgresql+psycopg://user:pass@db:5432/etike`. Required in production |
 | `TEST_DATABASE_URL` | tests | Separate database for tests (default in-memory SQLite) |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | db | Credentials for the Postgres container |
 | `GUNICORN_WORKERS` | api | Worker processes in production (default 3) |
+| `NGINX_CONF` | nginx (production) | `default.conf` (HTTP, the default) or `https.conf` once the certificate exists |
 | `BOOKING_HOLD_MINUTES` | api | How long an unpaid booking holds its seats (default 15) |
 | `UPLOAD_DIR` | api | Where car photos are saved (default `/uploads`, a Docker volume Nginx also serves) |
-| `DEMO_LOGIN` | api | `true` shows one-click test-account logins on the login page. On by default only in `docker-compose.yml`; never on a public server |
+| `DEMO_LOGIN` | api | `true` shows one-click test-account logins on the login page. On by default only in `docker-compose.yml`. With `FLASK_ENV=production` the API refuses to start if it is on |
 | `FEATURE_BUS_BOOKING` | api | `true` switches on bus booking, a future phase (default off: bus endpoints answer 404, bus bookings 400, and the website hides bus options) |
 | `CANCEL_CUTOFF_HOURS` | api | A confirmed booking can be cancelled until this many hours before departure (default 2) |
-| `CORS_ORIGINS` | api | Other sites allowed to call the API from a browser, comma separated. Empty by default (same-origin only) |
+| `CORS_ORIGINS` | api | Other sites allowed to call the API from a browser, comma separated. Empty by default (same-origin only), which is the right setting in production |
 | `MOMO_BASE_URL` | api | MoMo API address (default: the global sandbox, `https://sandbox.momodeveloper.mtn.com`) |
 | `MOMO_TARGET_ENVIRONMENT` | api | `sandbox` for testing (default), `mtnrwanda` in production |
 | `MOMO_SUBSCRIPTION_KEY` | api | Primary key of the MoMo Collections product |
@@ -258,6 +276,6 @@ docs/       Architecture, deployment, usability testing
 
 - [Architecture](docs/architecture.md)
 - [Deploying to a server: HTTPS, backups, admin](docs/deployment.md)
-- [Usability testing](docs/usability/test-plan.md)
+- [Usability testing](docs/usability/test-plan.md) and the [bug log](docs/usability/bug-log.md)
 - [Scrum process](docs/scrum/README.md), [Definition of Done](docs/scrum/definition-of-done.md), [Sprint 1](docs/scrum/sprints/sprint-1.md)
 - [Data rules and sources](data/README.md)

@@ -1,10 +1,29 @@
 # Deploying ETIKE to a server
 
+## Go-live checklist
+
+Tick every line before sharing the link. Each one points to the step below that does it.
+
+- [ ] Ubuntu VPS running, domain's DNS A record points at it, SSH keys only, firewall on (step 1)
+- [ ] `.env` filled in: random secrets, `FLASK_ENV=production`, `DEMO_LOGIN=false`, `FEATURE_BUS_BOOKING=false`, `CORS_ORIGINS` empty (step 2)
+- [ ] Stack up, `db upgrade` done, `/api/health` says ok (step 3)
+- [ ] Admin account created; `ADMIN_*` lines removed from `.env` (step 4)
+- [ ] HTTPS on: `NGINX_CONF=https.conf`, `http://` redirects, SSL Labs grade A (step 6)
+- [ ] `MOMO_CALLBACK_URL=https://YOUR_DOMAIN/api/payments/callback` (step 5)
+- [ ] GitHub secrets set; a push to `main` deploys (step 7)
+- [ ] Cron: `expire-bookings` every minute and the nightly backup (steps 8 and 9)
+- [ ] One backup restored into a scratch database (step 9)
+- [ ] Real districts and routes loaded, real drivers added and approved (step 10)
+- [ ] Logged in as a passenger on a phone: searched, booked a ride, cancelled it (step 10)
+- [ ] The live link is in the main README
+
+## What this sets up
+
 This sets up one Ubuntu VPS running the production stack (`docker-compose.prod.yml`): Nginx, the Flask API on Gunicorn, and PostgreSQL. The same steps work for staging and production; use a separate server (or folder and `.env`) for each.
 
 ## 1. Prepare the server
 
-1. Create an Ubuntu 24.04 VPS with at least 1 GB RAM. Point your domain's DNS A record at its IP address.
+1. Create an Ubuntu 24.04 VPS with at least 1 GB RAM (the cheapest plan of most providers, about 5 USD a month, is enough). Point your domain's DNS A record at its IP address.
 2. Log in as root once, create a deploy user and give it your SSH key:
    ```bash
    adduser deploy
@@ -16,7 +35,17 @@ This sets up one Ubuntu VPS running the production stack (`docker-compose.prod.y
    ```bash
    ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
    ```
-5. Install Docker Engine and the Compose plugin: https://docs.docker.com/engine/install/ubuntu/. Then `usermod -aG docker deploy` and log in again as `deploy`.
+5. Install Docker Engine and the Compose plugin from Docker's own repository (https://docs.docker.com/engine/install/ubuntu/):
+   ```bash
+   sudo apt update && sudo apt install -y ca-certificates curl git
+   sudo install -m 0755 -d /etc/apt/keyrings
+   sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+     | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt update && sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+   sudo usermod -aG docker deploy
+   ```
+   Log out and in again as `deploy`, then check: `docker compose version`.
 6. Turn on automatic security updates: `sudo apt install unattended-upgrades`.
 
 ## 2. Get the code and settings
@@ -32,6 +61,7 @@ nano .env
 In `.env`:
 
 - `FLASK_ENV=production`
+- `DEMO_LOGIN=false`, `FEATURE_BUS_BOOKING=false`, and leave `CORS_ORIGINS` empty: the pages and the API share one domain, so no other site needs access.
 - Replace every `change-me`. Make `SECRET_KEY` and `JWT_SECRET_KEY` two **different** random values:
   `python3 -c "import secrets; print(secrets.token_hex(32))"`
 - Make `DATABASE_URL` match `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB`.
@@ -51,7 +81,7 @@ curl http://localhost/api/health                    # {"database": "ok", "status
 
 What production adds over local development:
 
-- Gunicorn (worker count from `GUNICORN_WORKERS`), never the Flask debug server. `FLASK_ENV=production` keeps debug off, and the API refuses to start if `DATABASE_URL`, `SECRET_KEY` or `JWT_SECRET_KEY` is missing.
+- Gunicorn (worker count from `GUNICORN_WORKERS`), never the Flask debug server. `FLASK_ENV=production` keeps debug off. The API refuses to start if `DATABASE_URL`, `SECRET_KEY` or `JWT_SECRET_KEY` is missing, if a secret is still `change-me` or shorter than 32 characters, if the two secrets are the same, or if `DEMO_LOGIN` is on. If `ps` shows the API restarting, `docker compose -f docker-compose.prod.yml logs api` says which.
 - `restart: unless-stopped` on every container, so they come back after a crash or reboot.
 - Health checks: the API checks `/api/health`, and Nginx only starts once the API is healthy.
 - The API runs as a normal user inside its container, not root.
@@ -92,7 +122,9 @@ Production will use the Rwanda host with Rwanda live keys (see "Going live" belo
    docker compose -f docker-compose.prod.yml exec api flask --app wsgi momo-create-user --callback-host YOUR_DOMAIN
    ```
    Put the two lines it prints (`MOMO_API_USER`, `MOMO_API_KEY`) in `.env` and restart again.
-4. Optional: `MOMO_CALLBACK_URL=https://YOUR_DOMAIN/api/payments/callback`. Payments work without it, because the payment page checks the status itself; the callback only makes confirmation arrive even if the passenger closes the page. We have not tested the callback against the sandbox: if a request to pay is refused with the callback set, remove it.
+4. Once HTTPS is on (step 6), set `MOMO_CALLBACK_URL=https://YOUR_DOMAIN/api/payments/callback` and restart. MoMo calls it when a payment finishes, so the booking is confirmed even if the passenger closes the payment page (the page also checks the status itself). It must be the live `https://` domain: MoMo cannot reach `localhost`. We have not yet tested the callback against a live URL: if a request to pay is refused with it set, remove it and tell the team.
+
+Note: rides are paid to the driver, so MoMo is only used by bus tickets, which are off (`FEATURE_BUS_BOOKING=false`). To test MoMo on the server, switch the bus flag on for the test only.
 
 If MoMo answers "Access denied due to invalid subscription key", the key is from the other portal, the Collections subscription is not active, or the key was regenerated.
 
@@ -127,9 +159,9 @@ Production needs a MoMo business account approved by MTN Rwanda (KYC). MTN then 
    sudo mkdir -p /var/www/certbot
    sudo certbot certonly --webroot -w /var/www/certbot -d YOUR_DOMAIN
    ```
-2. `cp nginx/https.conf.example nginx/https.conf` and replace `YOUR_DOMAIN` (four places).
-3. In `docker-compose.prod.yml`, change `./nginx/default.conf` to `./nginx/https.conf`, then:
-   `docker compose -f docker-compose.prod.yml up -d`
+2. `cp nginx/https.conf.example nginx/https.conf` and replace `YOUR_DOMAIN` (four places): `sed -i 's/YOUR_DOMAIN/etike.example.com/g' nginx/https.conf`. Git ignores `nginx/https.conf`, so deploys never overwrite it.
+3. Add `NGINX_CONF=https.conf` to `.env`, then recreate Nginx:
+   `docker compose -f docker-compose.prod.yml up -d --force-recreate nginx`
 4. Certbot renews certificates by itself. Reload Nginx after each renewal:
    ```bash
    sudo certbot renew --deploy-hook "docker compose -f /home/deploy/etike/docker-compose.prod.yml exec nginx nginx -s reload"
@@ -196,7 +228,23 @@ Backups contain personal data (names, phone numbers), so the folder is readable 
 
 Test a restore into a scratch database now and then; a backup you have never restored is a guess.
 
-## 10. Security checklist
+## 10. Real data and a first check
+
+From the server, after the admin exists:
+
+```bash
+# Districts and routes collected by the team (see data/README.md)
+docker compose -f docker-compose.prod.yml run --rm -v "$PWD/data:/data" api python /data/scripts/clean_data.py
+docker compose -f docker-compose.prod.yml run --rm -v "$PWD/data:/data" api python /data/scripts/load_data.py
+# Real drivers who gave consent (CSV copied to data/raw/ on the server, never committed)
+docker compose -f docker-compose.prod.yml run --rm -v "$PWD/data:/data" api python /data/scripts/add_drivers.py /data/raw/drivers.csv
+```
+
+Approve each driver on the admin Drivers page after checking their licence. Never run `local_test_data.py` on the server: it is fake data for laptops only, and it is not in Git or in the server image.
+
+Then, on a phone: sign up as a passenger, search a real route, book a ride, cancel it.
+
+## 11. Security checklist
 
 - [ ] `.env` has `chmod 600`, real random secrets, and is not in Git.
 - [ ] MoMo stays on the sandbox (`MOMO_TARGET_ENVIRONMENT=sandbox`) until MTN approves the live account.

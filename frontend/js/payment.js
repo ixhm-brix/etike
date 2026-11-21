@@ -61,6 +61,7 @@
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     ui.clearErrors(form);
+    ui.say(msg, ""); // drop the last attempt's error while this one is sent
     if (!form.elements.phone.value.trim()) {
       ui.say(msg, "Enter the MTN MoMo number you want to pay with.");
       return;

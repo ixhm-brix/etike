@@ -16,9 +16,10 @@ Completed: Yes / With help / No. Time in seconds. Errors: count, then a few word
 |----|------|-----------|----------|--------|-------|
 | | T1 search | | | | |
 | | T2 book | | | | |
-| | T3 pay | | | | |
-| | T4 rate | | | | |
-| | T5 driver posts a ride | | | | |
+| | T3 knows how to pay | | | | |
+| | T4 cancel | | | | |
+| | T5 rate | | | | |
+| | T6 driver posts a ride | | | | |
 
 ## SUS scores
 
@@ -40,12 +41,13 @@ Fill in once all sessions are done.
 |------|-----------------|-----------------|--------------|
 | T1 search | | | |
 | T2 book | | | |
-| T3 pay | | | |
-| T4 rate | | | |
-| T5 driver posts a ride | | | |
+| T3 knows how to pay | | | |
+| T4 cancel | | | |
+| T5 rate | | | |
+| T6 driver posts a ride | | | |
 
 Average SUS score:
 
-Main problems found (each one becomes a GitHub issue):
+Main problems found (each one is logged in [bug-log.md](bug-log.md)):
 
 1.
