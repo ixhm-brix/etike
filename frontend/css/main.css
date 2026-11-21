@@ -799,6 +799,15 @@ a {
     stroke-linecap: round;
     stroke-linejoin: round;
   }
+  .tabbar a {
+    position: relative;
+  }
+  .tabbar .badge {
+    position: absolute;
+    top: 0.2rem;
+    left: calc(50% + 0.4rem);
+    margin: 0;
+  }
   .tabbar [aria-current="page"] {
     color: var(--black);
   }
@@ -1496,6 +1505,129 @@ a {
 }
 .btn-confirm {
   width: 100%;
+}
+
+/* Reaching the other person: Call, WhatsApp, Message (with new count). */
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--bad);
+  color: var(--white);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.review-meet {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--gray-200);
+}
+.trip-person {
+  display: grid;
+  gap: 0.25rem;
+}
+.trip-people li {
+  align-items: flex-start;
+}
+
+/* Chat (chat.html) */
+.chat-back {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  font-weight: 600;
+}
+.chat-info {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.25rem;
+}
+.chat-meet {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--gray-50);
+}
+.chat-list {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 5.5rem; /* room for the message box */
+}
+.chat-bubble {
+  max-width: 80%;
+  align-self: flex-start;
+  padding: 0.6rem 0.85rem;
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  background: var(--gray-100);
+}
+.chat-bubble.is-mine {
+  align-self: flex-end;
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  background: var(--black);
+  color: var(--white);
+}
+.chat-bubble p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-time {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+.chat-empty {
+  color: var(--gray-700);
+  text-align: center;
+  padding: 2rem 0;
+}
+.chat-form {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 35;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  padding: 0.6rem max(var(--gutter), calc((100% - 40rem) / 2)) calc(0.6rem + env(safe-area-inset-bottom));
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+}
+.chat-form textarea {
+  flex: 1;
+  min-height: 2.75rem;
+  max-height: 140px;
+  resize: none;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 1.4rem;
+  font: inherit;
+  font-size: 1rem; /* 16 px: phones don't zoom in */
+  background: var(--gray-50);
+}
+.chat-form .btn-black {
+  min-height: 2.75rem;
+  border-radius: 1.4rem;
+  padding: 0 1.25rem;
+}
+body.has-tabbar .chat-form {
+  bottom: calc(4.4rem + env(safe-area-inset-bottom));
+  padding-bottom: 0.6rem;
+}
+.chat-page .footer {
+  display: none;
 }
 
 /* Trip on the map (trip.html) */

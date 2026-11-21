@@ -311,7 +311,8 @@ def test_photos_show_on_rides(app, client, driver_with_car):
         db.session.commit()
     client.post("/api/rides", headers=headers, json={
         "vehicle_id": vehicle_id, "origin": "Kigali", "destination": "Huye",
-        "ride_type": "shared", "departure_time": "2099-01-01T08:00", "price": 5000})
+        "ride_type": "shared", "departure_time": "2099-01-01T08:00", "price": 5000,
+        "pickup_point": "Nyabugogo bus park, gate 2"})
 
     ride = client.get("/api/rides?origin=Kigali&destination=Huye").get_json()["rides"][0]
 

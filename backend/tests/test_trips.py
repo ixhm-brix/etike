@@ -105,6 +105,7 @@ def test_approved_driver_posts_ride_that_shows_in_search(app, client):
             "departure_time": departure,
             "price": 9000,
             "seats_available": 4,
+            "pickup_point": "Rusizi bus park, main gate",
         },
         headers=driver,
     )

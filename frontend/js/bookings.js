@@ -14,9 +14,13 @@
 
   const justBooked = new URLSearchParams(location.search).get("new");
   let shown = []; // what the page shows now, to notice changes
+  let unread = {}; // new messages per booking, for the Message buttons
 
   try {
-    const { bookings: items } = await api.get("/bookings/mine");
+    const [{ bookings: items }, counts] = await Promise.all([
+      api.get("/bookings/mine"), api.get("/messages/unread").catch(() => ({ by_booking: {} })),
+    ]);
+    unread = counts.by_booking;
     loading.hidden = true;
     const fresh = items.find((b) => String(b.booking_id) === justBooked && b.status === "confirmed");
     if (fresh) {
@@ -49,12 +53,16 @@
   // passenger sees "on the way" and then "pay now" without reloading.
   async function refresh() {
     const watching = shown.some((b) => b.pay_after_ride && b.status === "confirmed"
-      && (b.ride_progress !== "ended" || b.payment_status === "pending"));
+      && (b.ride_progress !== "ended" || b.payment_status === "pending" || b.driver_phone));
     if (!watching || document.hidden) return;
     try {
-      const { bookings: items } = await api.get("/bookings/mine");
+      const [{ bookings: items }, counts] = await Promise.all([
+        api.get("/bookings/mine"), api.get("/messages/unread").catch(() => ({ by_booking: unread })),
+      ]);
+      const newMessages = JSON.stringify(counts.by_booking) !== JSON.stringify(unread);
+      unread = counts.by_booking;
       const before = Object.fromEntries(shown.map((b) => [b.booking_id, b]));
-      const changed = items.some((b) => {
+      const changed = newMessages || items.some((b) => {
         const old = before[b.booking_id];
         return !old || old.ride_progress !== b.ride_progress || old.payment_status !== b.payment_status;
       });
@@ -88,6 +96,12 @@
     );
 
     if (b.status === "confirmed") li.append(ticket(b));
+    // Ride: where to meet and how to reach the driver (Call / WhatsApp
+    // until a day after the ride; the chat stays readable).
+    if (b.pay_after_ride && b.status === "confirmed") {
+      li.append(ui.contact({ phone: b.driver_phone, bookingId: b.booking_id,
+        unread: unread[b.booking_id] || 0, name: b.operator }));
+    }
 
     const actions = ui.el("div", "result-actions");
     if (b.pay_after_ride) {
@@ -156,6 +170,7 @@
       ["Booking number", `#${b.booking_id}`],
       ["Departure", ui.when(b.departure_time)],
       ["With", b.operator],
+      ...(b.pickup_point ? [["Meet at", b.pickup_point]] : []),
       b.booking_type === "bus"
         ? [b.seat_numbers.length > 1 ? "Seats" : "Seat", b.seat_numbers.join(", ")]
         : ["Seats", String(b.seats_booked)],

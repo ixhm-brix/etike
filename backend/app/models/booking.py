@@ -3,10 +3,15 @@ from datetime import timedelta
 from flask import current_app
 
 from ..extensions import db
+from ..validation import local_now
 from .user import utcnow
 
 BOOKING_TYPES = ("bus", "shared", "private")
 BOOKING_STATUSES = ("pending", "confirmed", "cancelled")
+
+
+# How long after departure passenger and driver can still reach each other.
+CONTACT_WINDOW = timedelta(days=1)
 
 
 class Booking(db.Model):
@@ -50,6 +55,14 @@ class Booking(db.Model):
         return target.departure_time - timedelta(hours=hours)
 
     @property
+    def contact_open(self):
+        """Passenger and driver of a ride booking can call and message each
+        other from booking until a day after the ride."""
+        if self.offer is None or self.status != "confirmed":
+            return False
+        return local_now() <= self.offer.departure_time + CONTACT_WINDOW
+
+    @property
     def can_pay(self):
         """A ride is paid once it has ended, if not paid (or paying) yet."""
         if self.offer is None or self.status != "confirmed" or self.offer.ended_at is None:
@@ -79,6 +92,9 @@ class Booking(db.Model):
             # Rides are paid with MoMo after the driver ends the ride.
             "pay_after_ride": self.offer_id is not None,
             "ride_progress": self.offer.progress if self.offer else None,
+            "pickup_point": self.offer.pickup_point if self.offer else None,
+            # Only between the two people on this ride, and only for a while.
+            "driver_phone": self.offer.driver.user.phone if self.contact_open else None,
             "can_pay": self.can_pay,
             "cancel_until": self.cancel_until.isoformat(timespec="minutes"),
             "driver_id": self.offer.driver_id if self.offer else None,

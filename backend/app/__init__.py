@@ -63,6 +63,7 @@ def create_app(config_name=None):
     from .routes.bookings import bookings_bp
     from .routes.drivers import drivers_bp
     from .routes.health import health_bp
+    from .routes.messages import messages_bp
     from .routes.payments import payments_bp
     from .routes.ratings import ratings_bp
     from .routes.search import search_bp
@@ -77,6 +78,7 @@ def create_app(config_name=None):
     app.register_blueprint(ratings_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/api")
     app.register_blueprint(tickets_bp, url_prefix="/api")
+    app.register_blueprint(messages_bp, url_prefix="/api")
 
     register_error_handlers(app)
     register_jwt_errors(jwt)

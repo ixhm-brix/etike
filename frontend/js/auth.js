@@ -152,6 +152,31 @@ const auth = (() => {
     account.addEventListener("click", () => toggleSheet(u, account));
     document.body.append(nav);
     document.body.classList.add("has-tabbar");
+    if (u.role !== "admin") watchMessages(nav, u);
+  }
+
+  // A red count on Bookings / My trips when someone has written.
+  function watchMessages(nav, u) {
+    const tab = nav.querySelector(`a[href="${u.role === "driver" ? "/driver/offer.html" : "/bookings.html"}"]`);
+    const check = async () => {
+      if (document.hidden || typeof api === "undefined") return;
+      try {
+        const { total } = await api.get("/messages/unread");
+        tab.querySelector(".badge")?.remove();
+        if (total) {
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = String(total);
+          b.setAttribute("aria-label", `${total} new messages`);
+          tab.append(b);
+        }
+      } catch (err) {
+        // The next check tries again.
+      }
+    };
+    check();
+    setInterval(check, 30000);
+    document.addEventListener("etike:messages-read", check);
   }
 
   // The Account tab opens a small panel from the bottom: who you are, and

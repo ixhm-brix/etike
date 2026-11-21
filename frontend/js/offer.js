@@ -249,6 +249,7 @@
       ride_type: f.ride_type.value,
       departure_time: f.departure_time.value,
       price: Number(f.price.value) || null,
+      pickup_point: f.pickup_point.value,
     };
     if (body.ride_type === "shared" && f.seats_available.value) {
       body.seats_available = Number(f.seats_available.value);

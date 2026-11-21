@@ -171,6 +171,11 @@
     const when = ui.el("p", "review-when", `${ui.day(item.departure_time)} at ${ui.clock(item.departure_time)}`);
     const kind = ui.el("p", "review-kind", isPrivate ? "Private car: the whole car is yours" : "Shared seat: you share the car");
     trip.append(stops, when, kind);
+    if (item.pickup_point) {
+      const meet = ui.el("p", "review-meet");
+      meet.append(ui.el("strong", null, "Meeting point"), ui.el("span", null, item.pickup_point));
+      trip.append(meet);
+    }
     box.append(trip);
 
     // How you pay, and until when you can cancel for free.

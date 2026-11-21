@@ -123,5 +123,31 @@ const ui = (() => {
     box.addEventListener("click", () => box.classList.add("is-hidden"));
   }
 
-  return { money, when, clock, day, date, today, toast, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
+  // Call, WhatsApp and Message buttons for the other person on a ride.
+  // phone is "+2507…" (or null once the contact window has closed); unread
+  // is the number of new messages, shown on the Message button.
+  function contact({ phone, bookingId, unread = 0, name = "" }) {
+    const box = el("div", "contact");
+    if (phone) {
+      const call = el("a", "btn-gray btn-sm", "Call");
+      call.href = `tel:${phone}`;
+      call.setAttribute("aria-label", `Call ${name}`.trim());
+      const wa = el("a", "btn-gray btn-sm", "WhatsApp");
+      wa.href = `https://wa.me/${phone.replace(/^\+/, "")}`;
+      wa.target = "_blank";
+      wa.rel = "noopener";
+      wa.setAttribute("aria-label", `WhatsApp ${name}`.trim());
+      box.append(call, wa);
+    }
+    const chat = el("a", "btn-black btn-sm", "Message");
+    chat.href = `/chat.html?booking=${bookingId}`;
+    if (unread) {
+      chat.append(el("span", "badge", String(unread)));
+      chat.setAttribute("aria-label", `Message ${name}, ${unread} new`.trim());
+    }
+    box.append(chat);
+    return box;
+  }
+
+  return { money, when, clock, day, date, today, toast, contact, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
 })();

@@ -104,6 +104,9 @@ class RideOffer(db.Model):
     price = db.Column(db.Integer, nullable=False)
     seats_available = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(10), nullable=False, default="open")
+    # Where the driver picks passengers up, in their words ("Nyabugogo bus
+    # park, gate 2"). Required for new rides; older rides may have none.
+    pickup_point = db.Column(db.String(200))
     # Set by the driver's Start ride and End ride buttons. Passengers pay
     # with MoMo once the ride has ended.
     started_at = db.Column(db.DateTime(timezone=True))
@@ -131,6 +134,7 @@ class RideOffer(db.Model):
             "seats_available": self.seats_available,
             "status": self.status,
             "progress": self.progress,
+            "pickup_point": self.pickup_point,
             "driver_id": self.driver_id,
             "driver_name": self.driver.user.full_name,
             "driver_rating": float(self.driver.avg_rating) if self.driver.avg_rating else None,

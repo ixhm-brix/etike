@@ -17,7 +17,7 @@ from ..extensions import db
 from ..models import Booking, RideLocation, RideOffer
 from ..models.user import utcnow
 from ..validation import local_now
-from . import sms_service
+from . import message_service, sms_service
 
 # Positions must be in or near Rwanda (a margin for GPS drift at borders).
 LAT_RANGE = (-3.2, -0.7)
@@ -48,6 +48,8 @@ def driver_rides(driver):
 
 
 def ride_dict(offer):
+    bookings = _confirmed(offer)
+    unread = message_service.unread_for_driver(offer.driver.user, bookings)
     passengers = [
         {
             "booking_id": b.booking_id,
@@ -55,8 +57,11 @@ def ride_dict(offer):
             "seats": b.seats_booked,
             "amount": b.total_price,
             "payment_status": b.payment.status if b.payment else None,
+            # Only between the two people on this ride, and only for a while.
+            "phone": b.user.phone if b.contact_open else None,
+            "unread": unread.get(b.booking_id, 0),
         }
-        for b in _confirmed(offer)
+        for b in bookings
     ]
     return {
         **offer.to_dict(),

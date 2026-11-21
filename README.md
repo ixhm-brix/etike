@@ -132,9 +132,10 @@ Admins log in on the website like anyone else and land on **Drivers** (check eac
 **Shared and private rides** (current scope) work like a taxi app:
 
 1. **Book.** Tapping a ride opens a review screen: the car's photos, the driver's name and rating, from and to, day and time, the price, and how you pay (MTN MoMo after the ride) and until when you can cancel for free. **Confirm booking** books it at once; a blue banner at the top confirms it. Shared rides take a number of seats; a private ride takes the whole car. No ticket is needed: the driver sees the booking.
-2. **Ride.** On the driver's phone, **My trips** shows today's booked rides. The driver taps **Start ride** (from one hour before departure) and **End ride** on arrival. The passenger's My bookings follows along ("On the way", then "Ride ended").
-3. **Trip on the map.** With the driver's permission, their phone records where the ride started and ended, and where the car is about every 30 seconds while it's on (the screen stays awake for this; a website can't track in the background, so the driver keeps ETIKE open). The driver, the ride's passengers and admins can open the trip on a map (`/trip.html`): the route driven, when and near which town it started and ended, distance and time. Passengers can follow the car live. It's free: the phone's GPS through the browser, and our own district map; no Google Maps or API key. A driver who doesn't allow location can still drive; the trip just isn't on the map.
-4. **Pay.** When the ride ends, each passenger sees **Pay with MoMo** and pays the fare in the app (a failed payment can be tried again). The driver's My trips shows each payment as it comes in, with a banner, and both get an SMS when SMS is set up.
+2. **Meet.** Every ride has a **meeting point** the driver writes when posting it ("Nyabugogo bus park, main gate"), shown before booking and in the booking. After booking, passenger and driver can reach each other: **Call** and **WhatsApp** buttons with each other's number, and a **chat** in ETIKE for each booking ("I'm at the gate, red jacket"), with a red count on the tab bar for new messages. Numbers are shown only to the two people on that booking, and only until a day after the ride; the chat stays readable but closes for new messages then. Search results never show phone numbers.
+3. **Ride.** On the driver's phone, **My trips** shows today's booked rides. The driver taps **Start ride** (from one hour before departure) and **End ride** on arrival. The passenger's My bookings follows along ("On the way", then "Ride ended").
+4. **Trip on the map.** With the driver's permission, their phone records where the ride started and ended, and where the car is about every 30 seconds while it's on (the screen stays awake for this; a website can't track in the background, so the driver keeps ETIKE open). The driver, the ride's passengers and admins can open the trip on a map (`/trip.html`): the route driven, when and near which town it started and ended, distance and time. Passengers can follow the car live. It's free: the phone's GPS through the browser, and our own district map; no Google Maps or API key. A driver who doesn't allow location can still drive; the trip just isn't on the map.
+5. **Pay.** When the ride ends, each passenger sees **Pay with MoMo** and pays the fare in the app (a failed payment can be tried again). The driver's My trips shows each payment as it comes in, with a banner, and both get an SMS when SMS is set up.
 
 **Bus tickets** (future phase, only with `FEATURE_BUS_BOOKING=true`) are paid before travel:
 
@@ -218,8 +219,11 @@ All responses are JSON. Errors always look like `{"error": {"code": "...", "mess
 | `POST /api/rides/<id>/start` | driver | Start my ride (from one hour before departure; needs a passenger) |
 | `POST /api/rides/<id>/end` | driver | End my ride: its passengers can now pay |
 | `POST /api/rides/<id>/locations` | driver | Where the car is now (`lat`, `lng`, `accuracy`), while the ride is on; start and end also accept a position |
+| `GET /api/bookings/<id>/messages` | the booking's passenger or its ride's driver | The chat for this booking (marks the other person's messages read), the other person's name and phone (while contact is open) |
+| `POST /api/bookings/<id>/messages` | the same two | Send a message (`body`, up to 1,000 characters), until a day after the ride |
+| `GET /api/messages/unread` | logged in | New messages, in total and per booking (for the tab bar badge) |
 | `GET /api/rides/<id>/track` | ride's driver, its passengers, admins | The trip on the map: positions, start and end, distance |
-| `POST /api/rides` | approved driver | Post a ride (`vehicle_id`, `origin`, `destination`, `ride_type`, `departure_time`, `price`, `seats_available`) |
+| `POST /api/rides` | approved driver | Post a ride (`vehicle_id`, `origin`, `destination`, `ride_type`, `departure_time`, `price`, `seats_available`, `pickup_point`) |
 | `POST /api/bookings` | passenger | Book (`trip_id` or `offer_id`, and `seat_numbers` chosen on the map, or `seats` for the lowest free ones). A bus booking starts `pending` with its seats held; a ride is `confirmed` at once. The price is worked out by the server |
 | `GET /api/bookings/mine` | logged in | My bookings |
 | `GET /api/bookings/<id>` | logged in | One of my bookings |

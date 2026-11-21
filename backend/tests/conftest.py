@@ -255,3 +255,29 @@ def documents(app, client, tmp_path):
             assert response.status_code == 201, response.get_json()
 
     return upload_all
+
+
+@pytest.fixture()
+def ride(app, client):
+    """ride(minutes_ahead=30, seats=3) -> (driver headers, offer_id), posted by an
+    approved driver through the API."""
+
+    def make(minutes_ahead=30, seats=3, price=4000):
+        signup = register(client, role="driver")
+        headers = auth_header(signup)
+        with app.app_context():
+            driver = db.session.get(Driver, signup.get_json()["user"]["driver"]["driver_id"])
+            driver.is_approved = True
+            db.session.commit()
+        vehicle = client.post("/api/drivers/vehicles", headers=headers, json={
+            "plate_number": f"RA{signup.get_json()['user']['phone'][-5:]}", "model": "Toyota RAV4",
+            "seats": seats}).get_json()["vehicle"]
+        departure = (local_now() + timedelta(minutes=minutes_ahead)).replace(microsecond=0)
+        posted = client.post("/api/rides", headers=headers, json={
+            "vehicle_id": vehicle["vehicle_id"], "origin": "Kigali", "destination": "Huye",
+            "ride_type": "shared", "departure_time": departure.isoformat(), "price": price,
+            "seats_available": seats, "pickup_point": "Nyabugogo bus park, gate 2"})
+        assert posted.status_code == 201, posted.get_json()
+        return headers, posted.get_json()["ride"]["offer_id"]
+
+    return make

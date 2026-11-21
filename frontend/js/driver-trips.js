@@ -24,7 +24,10 @@
   async function load(quietly = false) {
     try {
       const fresh = (await api.get("/drivers/rides")).rides;
-      if (quietly) announcePayments(rides, fresh);
+      if (quietly) {
+        announcePayments(rides, fresh);
+        announceMessages(rides, fresh);
+      }
       rides = fresh;
       render();
       syncTracking();
@@ -46,8 +49,9 @@
       || (r.progress === "scheduled" && new Date(r.departure_time) < soon && r.passengers.length));
   }
 
+  // Keep checking while there are trips to follow: payments and messages.
   function needsWatching() {
-    return rides.some((r) => r.progress === "ended" && r.paid < r.to_collect);
+    return current().length > 0;
   }
 
   function render() {
@@ -73,11 +77,15 @@
     );
     li.append(head, ui.el("span", "trip-when",
       `${ui.when(r.departure_time)} · ${r.ride_type === "private" ? "Private car" : "Shared seats"}`));
+    if (r.pickup_point) li.append(ui.el("span", "trip-when", `Meeting point: ${r.pickup_point}`));
 
     const people = ui.el("ul", "trip-people");
     r.passengers.forEach((p) => {
       const row = ui.el("li");
-      row.append(ui.el("span", null, `${p.name} · ${p.seats} seat${p.seats > 1 ? "s" : ""}`));
+      const who = ui.el("div", "trip-person");
+      who.append(ui.el("span", null, `${p.name} · ${p.seats} seat${p.seats > 1 ? "s" : ""}`),
+        ui.contact({ phone: p.phone, bookingId: p.booking_id, unread: p.unread, name: p.name }));
+      row.append(who);
       let state = ui.money(p.amount);
       let tone = "";
       if (r.progress === "ended") {
@@ -219,6 +227,17 @@
 
   function updateLiveLines() {
     document.querySelectorAll("[data-live]").forEach(fillLive);
+  }
+
+  // A banner when a passenger writes.
+  function announceMessages(before, after) {
+    const old = new Map();
+    before.forEach((r) => r.passengers.forEach((p) => old.set(p.booking_id, p.unread)));
+    after.forEach((r) => r.passengers.forEach((p) => {
+      if (p.unread > (old.get(p.booking_id) || 0)) {
+        ui.toast(`New message from ${p.name}`, "Tap Message to read and reply.");
+      }
+    }));
   }
 
   // A banner for every payment that came in since the last check.

@@ -3,6 +3,7 @@ SQLAlchemy, which Flask-Migrate needs to see them."""
 
 from .booking import Booking, BookingSeat
 from .login_code import LoginCode
+from .message import Message
 from .payment import Payment
 from .rating import Rating
 from .transport import BusCompany, BusTrip, RideLocation, RideOffer, Route
@@ -16,6 +17,7 @@ __all__ = [
     "Driver",
     "DriverDocument",
     "LoginCode",
+    "Message",
     "Payment",
     "Rating",
     "RideLocation",

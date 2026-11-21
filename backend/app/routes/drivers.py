@@ -312,6 +312,8 @@ def post_ride():
     seats = v.integer(
         data, "seats_available", minimum=1, maximum=vehicle.seats, default=vehicle.seats
     )
+    # Where passengers meet the driver, so nobody is left wondering.
+    pickup = v.text(data, "pickup_point", min_len=5, max_len=200)
 
     offer = RideOffer(
         driver_id=driver.driver_id,
@@ -321,6 +323,7 @@ def post_ride():
         departure_time=departure,
         price=price,
         seats_available=seats,
+        pickup_point=pickup,
         status="open",
     )
     db.session.add(offer)
