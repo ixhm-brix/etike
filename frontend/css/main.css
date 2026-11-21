@@ -1507,6 +1507,69 @@ a {
   width: 100%;
 }
 
+/* A labelled group of choices in a form (e.g. air conditioning yes/no). */
+.field-group {
+  display: grid;
+  gap: 0.4rem;
+}
+.field-group-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  padding-inline: 0.25rem;
+}
+
+/* Reviews of a driver (review screen and driver page). */
+.reviews {
+  margin-top: 0.25rem;
+  display: grid;
+  gap: 0.6rem;
+}
+#my-reviews .reviews {
+  margin-top: 2rem;
+}
+.reviews-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+.reviews-head span {
+  color: var(--gray-700);
+  font-weight: 600;
+}
+.reviews-list {
+  display: grid;
+  gap: 0.5rem;
+}
+.review {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--gray-50);
+  display: grid;
+  gap: 0.25rem;
+}
+.review-stars {
+  color: #b7791f;
+  letter-spacing: 0.08em;
+}
+.review p {
+  overflow-wrap: anywhere;
+}
+.review-by,
+.reviews-empty {
+  font-size: 0.875rem;
+  color: var(--gray-700);
+}
+.rate-form textarea {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 1rem;
+  resize: vertical;
+  outline: none;
+}
+
 /* Reaching the other person: Call, WhatsApp, Message (with new count). */
 .contact {
   display: flex;

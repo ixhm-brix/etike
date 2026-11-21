@@ -114,6 +114,7 @@ class Vehicle(db.Model):
     __tablename__ = "vehicles"
     __table_args__ = (
         db.CheckConstraint("seats >= 1", name="seats_positive"),
+        db.CheckConstraint("luggage IN ('small', 'medium', 'large')", name="luggage_allowed"),
     )
 
     vehicle_id = db.Column(db.Integer, primary_key=True)
@@ -121,6 +122,12 @@ class Vehicle(db.Model):
     plate_number = db.Column(db.String(12), nullable=False, unique=True)
     model = db.Column(db.String(60), nullable=False)
     seats = db.Column(db.Integer, nullable=False)  # passenger seats, driver not counted
+    # What passengers want to know, and how they spot the car at the meeting
+    # point. Required for new cars; older ones are completed on the driver page.
+    colour = db.Column(db.String(30))
+    year = db.Column(db.Integer)
+    has_ac = db.Column(db.Boolean)  # air conditioning
+    luggage = db.Column(db.String(6))  # small, medium or large boot
 
     driver = db.relationship("Driver", back_populates="vehicles")
     photos = db.relationship("VehiclePhoto", back_populates="vehicle",
@@ -132,8 +139,19 @@ class Vehicle(db.Model):
             "plate_number": self.plate_number,
             "model": self.model,
             "seats": self.seats,
+            "colour": self.colour,
+            "year": self.year,
+            "has_ac": self.has_ac,
+            "luggage": self.luggage,
             "photos": [p.to_dict() for p in self.photos],
+            "complete": self.complete,
         }
+
+    @property
+    def complete(self):
+        """Ready to carry passengers: every detail filled in and a photo."""
+        return (all(x is not None for x in (self.colour, self.year, self.has_ac, self.luggage))
+                and bool(self.photos))
 
 
 class VehiclePhoto(db.Model):

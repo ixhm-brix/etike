@@ -18,6 +18,7 @@ from ..services import ride_service
 drivers_bp = Blueprint("drivers", __name__)
 
 MAX_VEHICLE_SEATS = 30  # minibuses included; big buses belong to bus companies
+OLDEST_YEAR = 1980
 MAX_PHOTOS = 3
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
 
@@ -38,12 +39,8 @@ def _image_type(head):
 def add_vehicle():
     data = v.json_body()
     plate = "".join(v.text(data, "plate_number", min_len=4, max_len=12).split()).upper()
-    vehicle = Vehicle(
-        driver_id=current_user().driver.driver_id,
-        plate_number=plate,
-        model=v.text(data, "model", min_len=2, max_len=60),
-        seats=v.integer(data, "seats", minimum=1, maximum=MAX_VEHICLE_SEATS),
-    )
+    vehicle = Vehicle(driver_id=current_user().driver.driver_id, plate_number=plate,
+                      **_vehicle_details(data))
     db.session.add(vehicle)
     try:
         db.session.commit()
@@ -53,6 +50,34 @@ def add_vehicle():
             "A vehicle with this plate number is already registered.", "plate_taken"
         ) from None
     return jsonify({"vehicle": vehicle.to_dict()}), 201
+
+
+@drivers_bp.put("/drivers/vehicles/<int:vehicle_id>")
+@role_required("driver")
+def update_vehicle(vehicle_id):
+    """Correct a car's details (the plate stays: a new plate is a new car)."""
+    vehicle = _own_vehicle(vehicle_id)
+    for field, value in _vehicle_details(v.json_body()).items():
+        setattr(vehicle, field, value)
+    db.session.commit()
+    return jsonify({"vehicle": vehicle.to_dict()})
+
+
+def _vehicle_details(data):
+    """What passengers see about a car, checked."""
+    has_ac = data.get("has_ac")
+    if not isinstance(has_ac, bool):
+        raise bad_request("Say whether the car has air conditioning.",
+                          {"has_ac": "Choose yes or no."})
+    return {
+        "model": v.text(data, "model", min_len=2, max_len=60),
+        "seats": v.integer(data, "seats", minimum=1, maximum=MAX_VEHICLE_SEATS),
+        "colour": v.text(data, "colour", min_len=3, max_len=30).capitalize(),
+        "year": v.integer(data, "year", minimum=OLDEST_YEAR,
+                          maximum=v.local_now().year + 1),
+        "has_ac": has_ac,
+        "luggage": v.choice(data.get("luggage"), "luggage", ("small", "medium", "large")),
+    }
 
 
 @drivers_bp.get("/drivers/vehicles")
@@ -299,6 +324,10 @@ def post_ride():
     vehicle = db.session.get(Vehicle, v.integer(data, "vehicle_id", minimum=1))
     if vehicle is None or vehicle.driver_id != driver.driver_id:
         raise not_found("Vehicle not found in your account.")
+    if not vehicle.complete:
+        # Passengers choose a car by its photos and details.
+        raise conflict("Finish your car first: add its colour, year, air conditioning, "
+                       "luggage space and at least one photo.", "vehicle_incomplete")
 
     origin, destination = v.route_places(data.get("origin"), data.get("destination"))
     ride_type = v.choice(data.get("ride_type"), "ride_type", ("shared", "private"))

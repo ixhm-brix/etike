@@ -149,5 +149,44 @@ const ui = (() => {
     return box;
   }
 
-  return { money, when, clock, day, date, today, toast, contact, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
+  // What passengers say about a driver: average, count, then each review
+  // (stars, comment, "Divine I. · Kigali to Huye · 12 Nov"). Shows `limit`
+  // at first, with a button for the rest.
+  function reviews(data, { limit = 3, empty = "No reviews yet." } = {}) {
+    const box = el("section", "reviews");
+    const head = el("div", "reviews-head");
+    head.append(el("strong", null, "What passengers say"));
+    if (data.count) {
+      head.append(el("span", null, `★ ${data.avg_rating.toFixed(1)} · ${data.count} review${data.count > 1 ? "s" : ""}`));
+    }
+    box.append(head);
+    if (!data.recent.length) {
+      box.append(el("p", "reviews-empty", empty));
+      return box;
+    }
+    const list = el("ul", "reviews-list");
+    data.recent.forEach((r, i) => {
+      const li = el("li", "review");
+      const stars = el("span", "review-stars", "★".repeat(r.score) + "☆".repeat(5 - r.score));
+      stars.setAttribute("aria-label", `${r.score} out of 5`);
+      li.append(stars);
+      if (r.comment) li.append(el("p", null, r.comment));
+      li.append(el("span", "review-by", [r.by, r.route, date(r.created_at)].filter(Boolean).join(" · ")));
+      li.hidden = i >= limit;
+      list.append(li);
+    });
+    box.append(list);
+    if (data.recent.length > limit) {
+      const more = el("button", "btn-gray btn-sm", `Show all ${data.recent.length} reviews`);
+      more.type = "button";
+      more.addEventListener("click", () => {
+        list.querySelectorAll("li[hidden]").forEach((li) => { li.hidden = false; });
+        more.remove();
+      });
+      box.append(more);
+    }
+    return box;
+  }
+
+  return { money, when, clock, day, date, today, toast, contact, reviews, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
 })();

@@ -141,6 +141,10 @@ class RideOffer(db.Model):
             "vehicle": {
                 "model": self.vehicle.model,
                 "seats": self.vehicle.seats,
+                "colour": self.vehicle.colour,
+                "year": self.vehicle.year,
+                "has_ac": self.vehicle.has_ac,
+                "luggage": self.vehicle.luggage,
                 "photos": [p.to_dict() for p in self.vehicle.photos],
             },
         }

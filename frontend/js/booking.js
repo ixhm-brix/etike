@@ -160,9 +160,25 @@
     who.append(ui.el("strong", null, item.driver_name),
       ui.el("span", null, item.driver_rating ? `★ ${item.driver_rating.toFixed(1)} rating` : "New driver, no ratings yet"));
     const car = ui.el("div", "review-car");
-    car.append(ui.el("strong", null, v.model), ui.el("span", null, `${v.seats} passenger seats`));
+    const luggage = { small: "Small luggage space", medium: "Medium luggage space", large: "Large luggage space" }[v.luggage];
+    car.append(
+      ui.el("strong", null, `${[v.colour, v.model].filter(Boolean).join(" ")}${v.year ? `, ${v.year}` : ""}`),
+      ui.el("span", null, isPrivate
+        ? `Whole car for you: ${v.seats} passenger seats`
+        : `${v.seats} passenger seats · ${item.seats_available} still free`),
+      ui.el("span", null, [v.has_ac === true ? "Air conditioning" : v.has_ac === false ? "No air conditioning" : null, luggage]
+        .filter(Boolean).join(" · ")),
+    );
     driver.append(ui.el("span", "avatar", initials), who, car);
     box.append(driver);
+
+    // Reviews from earlier passengers, so people can judge the driver.
+    try {
+      const said = await api.get(`/drivers/${item.driver_id}/ratings`);
+      box.append(ui.reviews(said, { empty: "No reviews yet: this driver is new on ETIKE." }));
+    } catch (err) {
+      // Reviews are a help, not a must: book without them.
+    }
 
     // The trip.
     const trip = ui.el("div", "review-card review-trip");

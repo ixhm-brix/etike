@@ -95,6 +95,10 @@ class Booking(db.Model):
             "pickup_point": self.offer.pickup_point if self.offer else None,
             # Only between the two people on this ride, and only for a while.
             "driver_phone": self.offer.driver.user.phone if self.contact_open else None,
+            # The plate helps the passenger find the right car; only once booked.
+            "vehicle": {"model": self.offer.vehicle.model, "colour": self.offer.vehicle.colour,
+                        "plate_number": self.offer.vehicle.plate_number}
+            if self.offer and self.status == "confirmed" else None,
             "can_pay": self.can_pay,
             "cancel_until": self.cancel_until.isoformat(timespec="minutes"),
             "driver_id": self.offer.driver_id if self.offer else None,

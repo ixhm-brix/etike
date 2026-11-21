@@ -170,6 +170,7 @@
       ["Booking number", `#${b.booking_id}`],
       ["Departure", ui.when(b.departure_time)],
       ["With", b.operator],
+      ...(b.vehicle ? [["Car", `${[b.vehicle.colour, b.vehicle.model].filter(Boolean).join(" ")}, ${b.vehicle.plate_number}`]] : []),
       ...(b.pickup_point ? [["Meet at", b.pickup_point]] : []),
       b.booking_type === "bus"
         ? [b.seat_numbers.length > 1 ? "Seats" : "Seat", b.seat_numbers.join(", ")]
@@ -230,8 +231,8 @@
           <label class="mode"><input type="radio" name="score" value="${n}"><span>${n}</span></label>`).join("")}
       </div>
       <label class="field">
-        <span>Comment (optional)</span>
-        <input type="text" name="comment" maxlength="500">
+        <span>Your review (optional; others will see it with your first name)</span>
+        <textarea name="comment" maxlength="500" rows="2" placeholder="On time? Friendly? Clean car?"></textarea>
       </label>
       <button class="btn-black btn-sm" type="submit">Send rating</button>`;
     form.addEventListener("submit", async (e) => {
@@ -250,7 +251,7 @@
           }),
         );
         li.replaceWith(row({ ...b, rating: { score } }));
-        ui.say(msg, "Thanks for rating your driver.", "info");
+        ui.toast("Thanks for your review", "Other passengers will see it on this driver's rides.", "good");
       } catch (err) {
         ui.say(msg, err.message);
       }

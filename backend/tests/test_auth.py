@@ -108,18 +108,14 @@ def test_role_restrictions(client, passenger):
     assert booking.status_code == 403
 
 
-def test_unapproved_driver_cannot_post_ride(client):
+def test_unapproved_driver_cannot_post_ride(client, add_car):
     driver = auth_header(register(client, role="driver"))
-    vehicle = client.post(
-        "/api/drivers/vehicles",
-        json={"plate_number": "RAB 123 A", "model": "Car", "seats": 4},
-        headers=driver,
-    )
+    vehicle = {"vehicle": add_car(driver, "RAB 123 A")}
 
     response = client.post(
         "/api/rides",
         json={
-            "vehicle_id": vehicle.get_json()["vehicle"]["vehicle_id"],
+            "vehicle_id": vehicle["vehicle"]["vehicle_id"],
             "origin": "Kigali",
             "destination": "Huye",
             "ride_type": "shared",
@@ -129,6 +125,6 @@ def test_unapproved_driver_cannot_post_ride(client):
         headers=driver,
     )
 
-    assert vehicle.status_code == 201
+    assert vehicle["vehicle"]["vehicle_id"]
     assert response.status_code == 403
     assert response.get_json()["error"]["code"] == "driver_not_approved"

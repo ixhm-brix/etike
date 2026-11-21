@@ -257,8 +257,35 @@ def documents(app, client, tmp_path):
     return upload_all
 
 
+# What a driver fills in when registering a car (plate and seats vary).
+CAR = {"model": "Toyota RAV4", "colour": "Blue", "year": 2019, "has_ac": True,
+       "luggage": "medium"}
+# The smallest file the photo check accepts as a JPEG.
+JPEG = b"\xff\xd8\xff\xe0" + b"0" * 32
+
+
 @pytest.fixture()
-def ride(app, client):
+def add_car(app, client, tmp_path):
+    """add_car(headers, plate, seats=4, photo=True) -> the vehicle, registered
+    with every detail and (by default) a photo, so its rides can be posted."""
+    app.config["UPLOAD_DIR"] = str(tmp_path / "uploads")
+
+    def add(headers, plate, seats=4, photo=True):
+        response = client.post("/api/drivers/vehicles", headers=headers,
+                               json={**CAR, "plate_number": plate, "seats": seats})
+        assert response.status_code == 201, response.get_json()
+        vehicle = response.get_json()["vehicle"]
+        if photo:
+            client.post(f"/api/drivers/vehicles/{vehicle['vehicle_id']}/photos", headers=headers,
+                        data={"photo": (io.BytesIO(JPEG), "car.jpg")},
+                        content_type="multipart/form-data")
+        return vehicle
+
+    return add
+
+
+@pytest.fixture()
+def ride(app, client, add_car):
     """ride(minutes_ahead=30, seats=3) -> (driver headers, offer_id), posted by an
     approved driver through the API."""
 
@@ -269,9 +296,7 @@ def ride(app, client):
             driver = db.session.get(Driver, signup.get_json()["user"]["driver"]["driver_id"])
             driver.is_approved = True
             db.session.commit()
-        vehicle = client.post("/api/drivers/vehicles", headers=headers, json={
-            "plate_number": f"RA{signup.get_json()['user']['phone'][-5:]}", "model": "Toyota RAV4",
-            "seats": seats}).get_json()["vehicle"]
+        vehicle = add_car(headers, f"RA{signup.get_json()['user']['phone'][-5:]}", seats)
         departure = (local_now() + timedelta(minutes=minutes_ahead)).replace(microsecond=0)
         posted = client.post("/api/rides", headers=headers, json={
             "vehicle_id": vehicle["vehicle_id"], "origin": "Kigali", "destination": "Huye",

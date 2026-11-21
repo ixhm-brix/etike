@@ -19,9 +19,15 @@ class Rating(db.Model):
     booking = db.relationship("Booking", back_populates="rating")
 
     def to_dict(self):
-        # No passenger name: comments are shown publicly on the driver.
+        # Reviews are public on the driver, so only the reviewer's first name
+        # and initial ("Divine I."), never their full name or phone.
+        parts = self.booking.user.full_name.split()
+        by = parts[0] + (f" {parts[-1][0]}." if len(parts) > 1 else "")
+        offer = self.booking.offer
         return {
             "score": self.score,
             "comment": self.comment,
             "created_at": self.created_at.isoformat(),
+            "by": by,
+            "route": f"{offer.route.origin} to {offer.route.destination}" if offer else None,
         }

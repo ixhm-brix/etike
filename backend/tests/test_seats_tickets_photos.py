@@ -5,7 +5,7 @@ import threading
 import time
 
 import pytest
-from conftest import auth_header, is_postgres, register
+from conftest import CAR, auth_header, is_postgres, register
 
 from app.extensions import db
 from app.models import BookingSeat, BusTrip, Driver, RideOffer
@@ -242,7 +242,7 @@ def driver_with_car(app, client, tmp_path):
     response = register(client, role="driver")
     headers = auth_header(response)
     vehicle = client.post("/api/drivers/vehicles", headers=headers,
-                          json={"plate_number": "RAB 123 A", "model": "Test car", "seats": 4})
+                          json={**CAR, "plate_number": "RAB 123 A", "seats": 4})
     return headers, vehicle.get_json()["vehicle"]["vehicle_id"], tmp_path
 
 
@@ -317,3 +317,39 @@ def test_photos_show_on_rides(app, client, driver_with_car):
     ride = client.get("/api/rides?origin=Kigali&destination=Huye").get_json()["rides"][0]
 
     assert len(ride["vehicle"]["photos"]) == 1
+
+
+def test_car_needs_details_and_a_photo_before_rides(app, client, add_car):
+    from app.models import Driver
+
+    signup = register(client, role="driver")
+    headers = auth_header(signup)
+    with app.app_context():
+        driver_id = signup.get_json()["user"]["driver"]["driver_id"]
+        db.session.get(Driver, driver_id).is_approved = True
+        db.session.commit()
+    missing = client.post("/api/drivers/vehicles", headers=headers,
+                          json={"plate_number": "RAD 111 A", "model": "Toyota Vitz", "seats": 4})
+    no_photo = add_car(headers, "RAD 222 B", photo=False)
+    ride = {"origin": "Kigali", "destination": "Huye", "ride_type": "private",
+            "departure_time": "2099-01-01T08:00", "price": 30000,
+            "pickup_point": "Nyabugogo bus park, gate 2"}
+
+    refused = client.post("/api/rides", headers=headers,
+                          json={**ride, "vehicle_id": no_photo["vehicle_id"]})
+    fixed = client.put(f"/api/drivers/vehicles/{no_photo['vehicle_id']}", headers=headers,
+                       json={**CAR, "colour": "white", "seats": 4})
+    car = add_car(headers, "RAD 333 C")
+    posted = client.post("/api/rides", headers=headers,
+                         json={**ride, "vehicle_id": car["vehicle_id"]})
+    shown = client.get(f"/api/rides/{posted.get_json()['ride']['offer_id']}").get_json()["ride"]
+
+    assert missing.status_code == 400 and "has_ac" in missing.get_json()["error"]["fields"]
+    assert no_photo["complete"] is False
+    assert refused.status_code == 409
+    assert refused.get_json()["error"]["code"] == "vehicle_incomplete"
+    assert fixed.get_json()["vehicle"]["colour"] == "White"
+    assert posted.status_code == 201
+    assert {k: shown["vehicle"][k] for k in ("colour", "year", "has_ac", "luggage", "seats")} == {
+        "colour": "Blue", "year": 2019, "has_ac": True, "luggage": "medium", "seats": 4}
+    assert "plate_number" not in shown["vehicle"]  # only booked passengers see the plate

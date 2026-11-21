@@ -135,8 +135,12 @@
     return card({
       time: ui.when(r.departure_time),
       price: ui.money(r.price),
-      meta: `${r.driver_name}${r.driver_rating ? ` (${r.driver_rating}/5)` : ""} · ${r.vehicle.model}`,
-      note: isPrivate ? `whole car · ${r.seats_available} seats` : `per seat · ${r.seats_available} left`,
+      meta: `${r.driver_name}${r.driver_rating ? ` ★ ${r.driver_rating.toFixed(1)}` : ""} · `
+        + `${[r.vehicle.colour, r.vehicle.model].filter(Boolean).join(" ")}${r.vehicle.year ? `, ${r.vehicle.year}` : ""}`
+        + `${r.vehicle.has_ac ? " · AC" : ""}`,
+      note: isPrivate
+        ? `whole car · ${r.vehicle.seats} passenger seats`
+        : `per seat · ${r.seats_available} left`,
       href: `/booking.html?offer=${r.offer_id}&seats=${seats}`,
       photo: r.vehicle.photos?.[0],
     });
