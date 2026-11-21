@@ -267,14 +267,19 @@ const RwandaMap = (() => {
       let result;
       try {
         const url = `${ROUTER}${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`;
-        const res = await fetch(url, { signal: pending.signal });
+        // On slow mobile data the public router can hang: give up after
+        // 8 seconds and draw a straight line instead of waiting forever.
+        const controller = pending;
+        const timer = setTimeout(() => { controller.timedOut = true; controller.abort(); }, 8000);
+        const res = await fetch(url, { signal: pending.signal }).finally(() => clearTimeout(timer));
         const data = await res.json();
         const route = data.routes && data.routes[0];
         if (!route) throw new Error("No route");
         drawLine(route.geometry.coordinates.map(([lon, lat]) => project(lon, lat)), false);
         result = { km: route.distance / 1000, minutes: route.duration / 60 };
       } catch (err) {
-        if (err.name === "AbortError") return null;
+        // Aborted because the user picked another trip: nothing to draw.
+        if (err.name === "AbortError" && !pending.timedOut) return null;
         // Router unreachable: a straight dashed line instead.
         drawLine([pa, pb], true);
         result = { offline: true };

@@ -171,7 +171,7 @@
       const [heading, text] = ENDINGS[outcome];
       title.textContent = heading;
       ui.say(msg, text);
-      link(`/search.html?origin=${encodeURIComponent(booking.origin)}&destination=${encodeURIComponent(booking.destination)}`,
+      link(`/?origin=${encodeURIComponent(booking.origin)}&destination=${encodeURIComponent(booking.destination)}`,
         "Book again");
     }
     document.getElementById("result").hidden = false;

@@ -1247,6 +1247,20 @@ a {
   outline-offset: 2px;
 }
 
+/* Results: other days to try when the chosen day has nothing. */
+.other-days {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+.other-days span {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
 /* Driver documents (driver page and admin Drivers page) */
 .block-note {
   color: var(--gray-700);

@@ -52,9 +52,26 @@ const auth = (() => {
     return next && next.startsWith("/") && !next.startsWith("//") ? next : fallback;
   }
 
+  // On the log-in and sign-up pages: keep the page someone was going to
+  // (their search) when they switch between the two, and say why they're here.
+  function explainNext(otherLinkId) {
+    const next = nextPage(null);
+    if (!next) return;
+    const link = document.getElementById(otherLinkId);
+    if (link) link.href += `${link.href.includes("?") ? "&" : "?"}next=${encodeURIComponent(next)}`;
+    const box = document.getElementById("why-login");
+    const wanted = new URL(next, location.origin);
+    if (box && wanted.pathname === "/results.html") {
+      const p = wanted.searchParams;
+      box.textContent = `Log in or create an account to see prices for ${p.get("origin")} to ${p.get("destination")}. Your search is kept.`;
+      box.hidden = false;
+    }
+  }
+
   function homeFor(u) {
     if (u.role === "admin") return "/admin/drivers.html";
-    return u.role === "driver" ? "/driver/offer.html" : "/search.html";
+    // Passengers start on the home page: search with the map.
+    return u.role === "driver" ? "/driver/offer.html" : "/";
   }
 
   function renderAccount() {
@@ -94,5 +111,5 @@ const auth = (() => {
 
   document.addEventListener("DOMContentLoaded", renderAccount);
 
-  return { token, user, save, logout, require, nextPage, homeFor, forget: () => store(null) };
+  return { token, user, save, logout, require, nextPage, homeFor, explainNext, forget: () => store(null) };
 })();

@@ -4,6 +4,7 @@
   const form = document.getElementById("login");
   const msg = document.getElementById("msg");
   const button = form.querySelector("button");
+  auth.explainNext("to-register");
 
   function done(data) {
     auth.save(data);

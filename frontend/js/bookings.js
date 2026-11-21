@@ -22,7 +22,7 @@
     }
     if (!items.length) {
       list.replaceWith(ui.empty("No bookings yet", "When you book a trip it shows here.", {
-        href: "/search.html", text: "Find a trip",
+        href: "/#trip", text: "Find a trip",
       }));
       return;
     }
