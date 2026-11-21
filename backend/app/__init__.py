@@ -24,7 +24,7 @@ def check_production(config):
     if config["SECRET_KEY"] == config["JWT_SECRET_KEY"]:
         raise RuntimeError("SECRET_KEY and JWT_SECRET_KEY must be different.")
     if config.get("DEMO_LOGIN"):
-        # Demo login opens TEST accounts without a password.
+        # Demo login opens test accounts without a password.
         raise RuntimeError("DEMO_LOGIN must be off in production.")
 
 

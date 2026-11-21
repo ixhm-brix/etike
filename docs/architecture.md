@@ -52,7 +52,7 @@ No tables or data are removed; the booking service stays generic and still suppo
 | Places | `app/places.py` | The 28 places people travel between (Kigali's three districts count as one) and old town names such as Butare for Huye |
 | Commands | `app/cli.py` | `flask create-admin`, `flask approve-driver`, `flask expire-bookings`, `flask momo-create-user` (sandbox) |
 
-Data gets in through `data/scripts/clean_data.py` and `load_data.py` (districts and routes), and `add_drivers.py` (real drivers who gave consent, created unapproved), from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded. `backend/local_test_data.py` makes fake TEST data for laptops; it is ignored by Git and by the Docker build.
+Data gets in through `data/scripts/clean_data.py` and `load_data.py` (districts and routes), and `add_drivers.py` (real drivers who gave consent, created unapproved), from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded. `backend/local_test_data.py` makes sample data for laptops (accounts marked by `@etike.test` emails); it is ignored by Git and by the Docker build.
 
 ## Booking without double booking
 

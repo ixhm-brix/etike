@@ -1,5 +1,6 @@
 // Log in with phone number and password. Where the server allows it
-// (DEMO_LOGIN, never on a public server), one click logs in as a test account.
+// (DEMO_LOGIN, never on a public server), one click logs in as the Demo
+// Traveller or the Demo Driver.
 (function login() {
   const form = document.getElementById("login");
   const msg = document.getElementById("msg");
