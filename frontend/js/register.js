@@ -6,6 +6,7 @@
   const msg = document.getElementById("msg");
   const button = form.querySelector("button");
   const driverHint = document.getElementById("driver-hint");
+  auth.explainNext("to-login");
 
   function sync() {
     driverHint.hidden = form.elements.role.value !== "driver";

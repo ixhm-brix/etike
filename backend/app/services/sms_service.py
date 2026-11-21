@@ -65,7 +65,7 @@ def booking_confirmed(booking):
     route, when, seats = _describe(booking)
     passenger = booking.user
     if booking.offer:
-        payment = f"Pay the driver RWF {booking.total_price:,} during the ride."
+        payment = f"You pay RWF {booking.total_price:,} with MTN MoMo when the ride ends."
     else:
         payment = f"Paid RWF {booking.total_price:,}."
     send(
@@ -77,7 +77,8 @@ def booking_confirmed(booking):
         send(
             driver.phone,
             f"ETIKE: {passenger.full_name} booked {seats} on your ride {route}, {when} "
-            f"(booking #{booking.booking_id}). They pay you RWF {booking.total_price:,}.",
+            f"(booking #{booking.booking_id}). They pay RWF {booking.total_price:,} with MoMo "
+            "after the ride.",
         )
 
 
@@ -98,6 +99,30 @@ def booking_cancelled(booking):
             f"ETIKE: {passenger.full_name} cancelled {seats} on your ride {route}, {when} "
             f"(booking #{booking.booking_id}). The seats are open again.",
         )
+
+
+def ride_ended(booking):
+    """The driver ended the ride: ask the passenger to pay."""
+    route, _, _ = _describe(booking)
+    send(
+        booking.user.phone,
+        f"ETIKE: your ride {route} has ended. Please pay RWF {booking.total_price:,} with "
+        f"MTN MoMo: open My bookings in ETIKE (booking #{booking.booking_id}).",
+    )
+
+
+def ride_paid(booking):
+    """A passenger paid for a ride: confirm it to the driver and the passenger."""
+    route, _, _ = _describe(booking)
+    passenger = booking.user
+    send(
+        booking.offer.driver.user.phone,
+        f"ETIKE: {passenger.full_name} paid RWF {booking.total_price:,} for your ride {route} "
+        f"(booking #{booking.booking_id}).",
+    )
+    send(passenger.phone,
+         f"ETIKE: payment of RWF {booking.total_price:,} received for your ride {route}. "
+         "Thank you!")
 
 
 def _mask(phone):

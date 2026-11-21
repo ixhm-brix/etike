@@ -2,9 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Post a ride – ETIKE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>My trips – ETIKE</title>
   <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +23,7 @@
       <a class="brand" href="/">ETIKE</a>
       <nav aria-label="Main">
         <ul class="topbar-links">
-          <li><a href="/search.html">Find a trip</a></li>
+          <li><a href="/">Find a trip</a></li>
         </ul>
       </nav>
       <div class="account" id="account"></div>
@@ -27,8 +31,17 @@
   </header>
 
   <main id="main" class="page wrap page-narrow">
-    <h1>Post a ride</h1>
+    <h1>My trips</h1>
     <p class="page-sub" id="status"></p>
+
+    <section class="block" aria-labelledby="trips-title" id="trips-block" hidden>
+      <h2 id="trips-title">Today and next</h2>
+      <p class="block-note">Tap <strong>Start ride</strong> when you set off and <strong>End ride</strong> when you arrive. Your passengers then pay with MTN MoMo, and you see each payment here.</p>
+      <ul class="trips" id="trips"></ul>
+      <p class="trip-msg" id="trips-msg" role="alert"></p>
+    </section>
+
+    <div id="my-reviews"></div>
 
     <section class="block" aria-labelledby="details-title">
       <h2 id="details-title">1. Your details</h2>
@@ -87,10 +100,41 @@
           <input type="text" name="model" autocomplete="off" placeholder="Toyota Corolla" required>
         </label>
         <label class="field">
+          <span>Colour</span>
+          <select name="colour" required>
+            <option value="">Choose</option>
+            <option>White</option><option>Black</option><option>Silver</option><option>Grey</option>
+            <option>Blue</option><option>Red</option><option>Green</option><option>Beige</option>
+            <option>Brown</option><option>Yellow</option><option>Orange</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Year</span>
+          <input type="number" name="year" min="1980" max="2030" inputmode="numeric" placeholder="2018" required>
+        </label>
+        <label class="field">
           <span>Passenger seats (not counting you)</span>
           <input type="number" name="seats" min="1" max="30" inputmode="numeric" required>
         </label>
+        <div class="field-group">
+          <span class="field-group-label">Air conditioning</span>
+          <div class="modes" role="radiogroup" aria-label="Air conditioning">
+            <label class="mode"><input type="radio" name="has_ac" value="yes"><span>Yes</span></label>
+            <label class="mode"><input type="radio" name="has_ac" value="no"><span>No</span></label>
+          </div>
+        </div>
+        <label class="field">
+          <span>Luggage space</span>
+          <select name="luggage" required>
+            <option value="">Choose</option>
+            <option value="small">Small: a few bags</option>
+            <option value="medium">Medium: a suitcase each</option>
+            <option value="large">Large: big suitcases, boxes</option>
+          </select>
+        </label>
+        <p class="field-hint">After adding the car, add at least one photo: passengers choose by them.</p>
         <button class="btn-gray btn-sm" type="submit">Add vehicle</button>
+        <button class="btn-gray btn-sm" type="button" id="vehicle-cancel" hidden>Cancel</button>
         <p class="trip-msg" id="vehicle-msg" role="alert"></p>
       </form>
     </section>
@@ -122,6 +166,11 @@
             <select name="destination" required></select>
           </label>
         </div>
+        <label class="field">
+          <span>Meeting point</span>
+          <input type="text" name="pickup_point" maxlength="200" autocomplete="off" placeholder="e.g. Nyabugogo bus park, gate 2" required>
+        </label>
+        <p class="field-hint">Where passengers find you. Be precise: a landmark helps.</p>
         <label class="field">
           <span>Departure</span>
           <input type="datetime-local" name="departure_time" required>
@@ -184,5 +233,6 @@
   <script src="/js/api.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/offer.js"></script>
+  <script src="/js/driver-trips.js"></script>
 </body>
 </html>

@@ -45,6 +45,10 @@ def test_rating_updates_driver_average(app, client, make_offer):
     public = client.get(f"/api/drivers/{driver_id}/ratings").get_json()
     assert public["count"] == 1
     assert public["recent"][0]["comment"] == "On time, careful driver."
+    # Public, so the reviewer is only "First L." (register() names them "Test User").
+    assert public["recent"][0]["by"] == "Test U."
+    assert public["recent"][0]["route"] == "Kigali to Musanze"
+    assert "Test User" not in str(public)
 
 
 def test_average_over_several_ratings(app, client, make_offer):

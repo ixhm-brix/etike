@@ -2,9 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Log in – ETIKE</title>
   <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +23,7 @@
       <a class="brand" href="/">ETIKE</a>
       <nav aria-label="Main">
         <ul class="topbar-links">
-          <li><a href="/search.html">Find a trip</a></li>
+          <li><a href="/">Find a trip</a></li>
         </ul>
       </nav>
       <div class="account" id="account"></div>
@@ -28,7 +32,8 @@
 
   <main id="main" class="page wrap page-narrow">
     <h1>Log in</h1>
-    <p class="page-sub">New to ETIKE? <a href="/register.html">Create an account</a></p>
+    <p class="page-sub">New to ETIKE? <a href="/register.html" id="to-register">Create an account</a></p>
+    <p class="trip-msg" id="why-login" data-tone="info" hidden></p>
 
     <form class="form" id="login" novalidate>
       <label class="field">
@@ -45,11 +50,10 @@
 
     <section class="demo-login" data-feature="demo" aria-labelledby="demo-title">
       <h2 id="demo-title">Just looking around?</h2>
-      <p>Try ETIKE with a test account. No sign-up needed.</p>
+      <p>Try ETIKE with a demo account. No sign-up needed.</p>
       <div class="demo-buttons">
-        <button class="btn-gray btn-sm" type="button" data-role="passenger">Passenger</button>
-        <button class="btn-gray btn-sm" type="button" data-role="driver">Driver</button>
-        <button class="btn-gray btn-sm" type="button" data-role="admin">Admin</button>
+        <button class="btn-gray btn-sm" type="button" data-role="passenger">Demo traveller</button>
+        <button class="btn-gray btn-sm" type="button" data-role="driver">Demo driver</button>
       </div>
       <p class="trip-msg" id="demo-msg" role="alert"></p>
     </section>

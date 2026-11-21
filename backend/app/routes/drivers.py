@@ -13,10 +13,12 @@ from ..errors import ApiError, bad_request, conflict, not_found
 from ..extensions import db
 from ..models import Driver, DriverDocument, RideOffer, Route, Vehicle, VehiclePhoto
 from ..models.user import utcnow
+from ..services import ride_service
 
 drivers_bp = Blueprint("drivers", __name__)
 
 MAX_VEHICLE_SEATS = 30  # minibuses included; big buses belong to bus companies
+OLDEST_YEAR = 1980
 MAX_PHOTOS = 3
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
 
@@ -37,12 +39,8 @@ def _image_type(head):
 def add_vehicle():
     data = v.json_body()
     plate = "".join(v.text(data, "plate_number", min_len=4, max_len=12).split()).upper()
-    vehicle = Vehicle(
-        driver_id=current_user().driver.driver_id,
-        plate_number=plate,
-        model=v.text(data, "model", min_len=2, max_len=60),
-        seats=v.integer(data, "seats", minimum=1, maximum=MAX_VEHICLE_SEATS),
-    )
+    vehicle = Vehicle(driver_id=current_user().driver.driver_id, plate_number=plate,
+                      **_vehicle_details(data))
     db.session.add(vehicle)
     try:
         db.session.commit()
@@ -52,6 +50,34 @@ def add_vehicle():
             "A vehicle with this plate number is already registered.", "plate_taken"
         ) from None
     return jsonify({"vehicle": vehicle.to_dict()}), 201
+
+
+@drivers_bp.put("/drivers/vehicles/<int:vehicle_id>")
+@role_required("driver")
+def update_vehicle(vehicle_id):
+    """Correct a car's details (the plate stays: a new plate is a new car)."""
+    vehicle = _own_vehicle(vehicle_id)
+    for field, value in _vehicle_details(v.json_body()).items():
+        setattr(vehicle, field, value)
+    db.session.commit()
+    return jsonify({"vehicle": vehicle.to_dict()})
+
+
+def _vehicle_details(data):
+    """What passengers see about a car, checked."""
+    has_ac = data.get("has_ac")
+    if not isinstance(has_ac, bool):
+        raise bad_request("Say whether the car has air conditioning.",
+                          {"has_ac": "Choose yes or no."})
+    return {
+        "model": v.text(data, "model", min_len=2, max_len=60),
+        "seats": v.integer(data, "seats", minimum=1, maximum=MAX_VEHICLE_SEATS),
+        "colour": v.text(data, "colour", min_len=3, max_len=30).capitalize(),
+        "year": v.integer(data, "year", minimum=OLDEST_YEAR,
+                          maximum=v.local_now().year + 1),
+        "has_ac": has_ac,
+        "luggage": v.choice(data.get("luggage"), "luggage", ("small", "medium", "large")),
+    }
 
 
 @drivers_bp.get("/drivers/vehicles")
@@ -242,6 +268,49 @@ def _own_vehicle(vehicle_id):
     return vehicle
 
 
+@drivers_bp.get("/drivers/rides")
+@role_required("driver")
+def my_rides():
+    """The driver's rides with their passengers and payments."""
+    return jsonify({"rides": ride_service.driver_rides(current_user().driver)})
+
+
+@drivers_bp.post("/rides/<int:offer_id>/start")
+@role_required("driver")
+def start_ride(offer_id):
+    # The body may carry where the phone is ({lat, lng, accuracy}); optional.
+    location = ride_service.location_from(request.get_json(silent=True))
+    offer = ride_service.start(current_user().driver, offer_id, location)
+    return jsonify({"ride": ride_service.ride_dict(offer)})
+
+
+@drivers_bp.post("/rides/<int:offer_id>/end")
+@role_required("driver")
+def end_ride(offer_id):
+    """End the ride: its passengers can now pay with MoMo."""
+    location = ride_service.location_from(request.get_json(silent=True))
+    offer = ride_service.end(current_user().driver, offer_id, location)
+    return jsonify({"ride": ride_service.ride_dict(offer)})
+
+
+@drivers_bp.post("/rides/<int:offer_id>/locations")
+@role_required("driver")
+def ride_location(offer_id):
+    """Where the car is now, sent by the driver's phone while the ride is on."""
+    location = ride_service.location_from(v.json_body())
+    if location is None:
+        raise bad_request("Send lat and lng.", {"lat": "Required."})
+    saved = ride_service.record(current_user().driver, offer_id, location)
+    return jsonify({"saved": saved}), 201 if saved else 200
+
+
+@drivers_bp.get("/rides/<int:offer_id>/track")
+@role_required()
+def ride_track(offer_id):
+    """The trip record on a map: for the driver, the ride's passengers, admins."""
+    return jsonify(ride_service.trip_record(current_user(), offer_id))
+
+
 @drivers_bp.post("/rides")
 @role_required("driver")
 def post_ride():
@@ -255,6 +324,10 @@ def post_ride():
     vehicle = db.session.get(Vehicle, v.integer(data, "vehicle_id", minimum=1))
     if vehicle is None or vehicle.driver_id != driver.driver_id:
         raise not_found("Vehicle not found in your account.")
+    if not vehicle.complete:
+        # Passengers choose a car by its photos and details.
+        raise conflict("Finish your car first: add its colour, year, air conditioning, "
+                       "luggage space and at least one photo.", "vehicle_incomplete")
 
     origin, destination = v.route_places(data.get("origin"), data.get("destination"))
     ride_type = v.choice(data.get("ride_type"), "ride_type", ("shared", "private"))
@@ -268,6 +341,8 @@ def post_ride():
     seats = v.integer(
         data, "seats_available", minimum=1, maximum=vehicle.seats, default=vehicle.seats
     )
+    # Where passengers meet the driver, so nobody is left wondering.
+    pickup = v.text(data, "pickup_point", min_len=5, max_len=200)
 
     offer = RideOffer(
         driver_id=driver.driver_id,
@@ -277,6 +352,7 @@ def post_ride():
         departure_time=departure,
         price=price,
         seats_available=seats,
+        pickup_point=pickup,
         status="open",
     )
     db.session.add(offer)

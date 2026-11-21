@@ -39,6 +39,9 @@ def register():
     email = v.text(data, "email", min_len=3, max_len=255, required=False)
     if email and "@" not in email:
         raise bad_request("Enter a valid email address.", {"email": "Not a valid email address."})
+    if email and email.lower().endswith(TEST_EMAIL_DOMAIN):
+        # Reserved for the laptop-only test accounts (see demo_login).
+        raise bad_request("Use your own email address.", {"email": "Use your own email address."})
     # Admin accounts are never created through the website.
     role = v.choice(data.get("role", "passenger"), "role", ("passenger", "driver"))
 
@@ -186,29 +189,31 @@ def verify_code():
     return jsonify(body), 201 if new_user else 200
 
 
-# Test accounts are the ones whose name starts with this (see the local test
-# data tool). Demo login never touches any other account.
-DEMO_PREFIX = "TEST "
+# Sample accounts (made by the local test data tool) are marked by an email on
+# the reserved ".test" domain (RFC 2606), which no real person can have;
+# sign-up refuses it too. One-click login only opens these two of them.
+TEST_EMAIL_DOMAIN = "@etike.test"
+DEMO_ACCOUNTS = {"passenger": "demo.passenger@etike.test", "driver": "demo.driver@etike.test"}
 
 
 @auth_bp.post("/demo")
 def demo_login():
-    """Log in as a test account with one click, for demos and testing.
+    """Log in with one click as the Demo Traveller or the Demo Driver.
 
-    Only when DEMO_LOGIN is on, and only into accounts named "TEST ...".
+    Only when DEMO_LOGIN is on (never in production), and only into those two
+    accounts, found by their reserved @etike.test emails.
     """
     if not current_app.config.get("DEMO_LOGIN"):
         raise ApiError(404, "not_found", "Test accounts are not available here.")
-    role = v.choice(v.json_body().get("role"), "role", ("passenger", "driver", "admin"))
-    query = db.session.query(User).filter(User.role == role,
-                                          User.full_name.like(f"{DEMO_PREFIX}%"))
+    role = v.choice(v.json_body().get("role"), "role", tuple(DEMO_ACCOUNTS))
+    query = db.session.query(User).filter(User.role == role, User.email == DEMO_ACCOUNTS[role])
     if role == "driver":
         # An approved driver, so posting rides works in the demo.
         query = query.join(Driver).filter(Driver.is_approved.is_(True))
     user = query.order_by(User.user_id).first()
     if user is None:
         raise ApiError(404, "no_test_account",
-                       f"There is no test {role} account. Load the test data first.")
+                       f"There is no demo {role} account. Load the sample data first.")
     return jsonify({"user": user.to_dict(), "access_token": _token_for(user)})
 
 

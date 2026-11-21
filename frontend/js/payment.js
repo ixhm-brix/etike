@@ -1,4 +1,5 @@
-// Pay for a pending booking with MTN MoMo.
+// Pay with MTN MoMo: a ride once the driver has ended it, or (future
+// phase) a pending bus ticket before travel.
 // The amount always comes from the server. After "Pay with MoMo" the
 // passenger approves on their phone with their MoMo PIN, and this page
 // checks the status until the payment succeeds, fails, is declined, or the
@@ -35,6 +36,7 @@
     document.getElementById("subtitle").textContent =
       `${booking.origin} to ${booking.destination}, ${ui.when(booking.departure_time)}`;
 
+    if (booking.pay_after_ride) return showRide(booking, payment, provider);
     if (booking.status === "confirmed") return finish("paid", booking);
     if (booking.status === "cancelled") return finish(whyCancelled(payment), booking);
 
@@ -56,6 +58,65 @@
 
     if (payment && payment.status === "pending") waitForApproval();
     else if (/^\+2507[89]/.test(user.phone)) form.elements.phone.value = localPhone(user.phone);
+  }
+
+  // A ride: paid after the driver ends it. No seat hold, and a failed
+  // payment can simply be tried again.
+  function showRide(booking, payment, provider) {
+    document.getElementById("title").textContent = "Pay for your ride";
+    countdown.hidden = true;
+    if (payment?.status === "success") return finishRide(booking);
+    if (booking.status !== "confirmed") return finish("expired", booking);
+    if (!booking.can_pay && payment?.status !== "pending") {
+      paySection.hidden = true;
+      ui.say(msg, booking.ride_progress === "in_progress"
+        ? "Your ride is under way. You pay once the driver ends it."
+        : "You pay once the driver ends the ride. We'll show \"Pay now\" in My bookings.", "info");
+      return;
+    }
+    paySection.hidden = false;
+    form.hidden = false;
+    waiting.hidden = true;
+    fillSummary(document.getElementById("summary"), [
+      ["Ride", `${booking.origin} to ${booking.destination}`],
+      ["Driver", booking.operator],
+      ["Seats", String(booking.seats_booked)],
+      ["To pay", ui.money(booking.total_price), true],
+    ]);
+    const note = document.getElementById("sandbox-note");
+    if (provider && provider.currency !== "RWF") {
+      note.hidden = false;
+      note.textContent = `Sandbox test currency: MoMo will show ${provider.currency} `
+        + `${booking.total_price.toLocaleString("en-US")}. No real money moves.`;
+    }
+    if (payment?.status === "pending") return waitForApproval();
+    if (payment?.status === "failed") {
+      ui.say(msg, `${ENDINGS[whyCancelled(payment)][0]}. You were not charged. Please try again.`);
+    }
+    if (!form.elements.phone.value && /^\+2507[89]/.test(user.phone)) {
+      form.elements.phone.value = localPhone(user.phone);
+    }
+  }
+
+  function finishRide(booking) {
+    clearInterval(pollTimer);
+    paySection.hidden = true;
+    document.getElementById("title").textContent = "Thank you!";
+    fillSummary(document.getElementById("receipt"), [
+      ["Booking number", `#${booking.booking_id}`],
+      ["Ride", `${booking.origin} to ${booking.destination}`],
+      ["Driver", booking.operator],
+      ["Paid", ui.money(booking.total_price), true],
+    ]);
+    ui.say(msg, "Payment received. Your driver has been told.", "info");
+    ui.toast("Payment received", `${ui.money(booking.total_price)} paid to ${booking.operator}.`, "good");
+    const links = document.getElementById("result-links");
+    links.replaceChildren();
+    const a = ui.el("a", null, "Rate your driver in My bookings");
+    a.href = "/bookings.html";
+    links.append(a);
+    document.getElementById("result").hidden = false;
+    document.getElementById("receipt").hidden = false;
   }
 
   form.addEventListener("submit", async (e) => {
@@ -94,7 +155,10 @@
   async function poll() {
     try {
       const next = await api.get(`/payments/${encodeURIComponent(bookingId)}/status`);
-      if (next.booking.status !== "pending") {
+      const settled = next.booking.pay_after_ride
+        ? next.payment?.status !== "pending"
+        : next.booking.status !== "pending";
+      if (settled) {
         clearInterval(pollTimer);
         show(next);
       }
@@ -171,7 +235,7 @@
       const [heading, text] = ENDINGS[outcome];
       title.textContent = heading;
       ui.say(msg, text);
-      link(`/search.html?origin=${encodeURIComponent(booking.origin)}&destination=${encodeURIComponent(booking.destination)}`,
+      link(`/?origin=${encodeURIComponent(booking.origin)}&destination=${encodeURIComponent(booking.destination)}`,
         "Book again");
     }
     document.getElementById("result").hidden = false;

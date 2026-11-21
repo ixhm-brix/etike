@@ -1,5 +1,6 @@
-"""Rides are confirmed without paying online; confirmed bookings can be
-cancelled until the cut-off; cancelling a paid bus ticket creates a refund."""
+"""Rides are confirmed without paying first (they are paid after the ride,
+see test_ride_trip.py); confirmed bookings can be cancelled until the
+cut-off; cancelling a paid bus ticket creates a refund."""
 
 from app.extensions import db
 from app.models import BusTrip, Payment, RideOffer
@@ -27,7 +28,7 @@ def test_ride_is_confirmed_without_paying(app, client, make_offer, passenger):
     booking = book(client, passenger, offer_id=offer_id, seats=2).get_json()["booking"]
 
     assert booking["status"] == "confirmed"
-    assert booking["pay_driver"] is True
+    assert booking["pay_after_ride"] is True
     assert booking["expires_at"] is None
     assert booking["total_price"] == 8000
     with app.app_context():
@@ -38,16 +39,18 @@ def test_bus_still_needs_payment(client, make_trip, passenger):
     booking = book(client, passenger, trip_id=make_trip()).get_json()["booking"]
 
     assert booking["status"] == "pending"
-    assert booking["pay_driver"] is False
+    assert booking["pay_after_ride"] is False
 
 
-def test_rides_cannot_be_paid_online(client, make_offer, passenger, momo):
+def test_ride_is_not_paid_before_it_ends(client, make_offer, passenger, momo):
     booking = book(client, passenger, offer_id=make_offer()).get_json()["booking"]
 
-    response = client.post("/api/payments", json={"booking_id": booking["booking_id"]},
-                           headers=passenger)
+    response = client.post("/api/payments", json={"booking_id": booking["booking_id"],
+                                                  "phone": "0781234567"}, headers=passenger)
 
-    assert response.status_code == 400
+    assert response.status_code == 409
+    assert response.get_json()["error"]["code"] == "ride_not_ended"
+    assert booking["can_pay"] is False
     assert momo.requests == []
 
 

@@ -1,5 +1,7 @@
-// Confirm a booking. Bus: choose seats on the seat map. Shared ride: say
-// how many seats. Private ride: the whole car. The server works out the price.
+// Confirm a booking. Ride: a full review first (car photos, driver and
+// rating, the trip, the price, how you pay), then one Confirm button, like
+// a taxi app. Bus: choose seats on the seat map. The server works out the
+// price either way.
 (async function booking() {
   const user = auth.require("passenger");
   if (!user) return;
@@ -53,15 +55,17 @@
 
   document.getElementById("subtitle").textContent =
     `${item.origin} to ${item.destination}, ${ui.when(item.departure_time)}`;
-  if (!tripId) showPhotos(item.vehicle);
 
-  // Buses are paid now; rides are paid to the driver.
+  // Buses are paid now; rides are paid with MoMo after the ride.
   const note = document.getElementById("pay-note");
   if (tripId) {
     button.textContent = "Continue to payment";
     note.textContent = "You pay now with MTN MoMo. Your seats are held for 15 minutes while you pay.";
   } else {
-    note.textContent = "Nothing to pay now. You pay the driver during or after the ride, in cash or by MoMo.";
+    document.getElementById("title").textContent = "Review your ride";
+    document.getElementById("subtitle").textContent = "Check everything, then confirm.";
+    document.getElementById("summary").hidden = true;
+    await showReview();
   }
 
   if (tripId) {
@@ -122,7 +126,108 @@
     return b;
   }
 
+  // The ride review: what a passenger checks before confirming.
+  async function showReview() {
+    const box = document.getElementById("review");
+    box.hidden = false;
+    const v = item.vehicle;
+
+    // Car photos, swipeable, with a counter.
+    if (v.photos?.length) {
+      const gallery = ui.el("div", "gallery");
+      const strip = ui.el("div", "gallery-strip");
+      const count = ui.el("span", "gallery-count", `1 / ${v.photos.length}`);
+      v.photos.forEach((p, i) => {
+        const img = ui.el("img");
+        img.src = p.url;
+        img.alt = `${v.model}, photo ${i + 1} of ${v.photos.length}`;
+        img.loading = i ? "lazy" : "eager";
+        strip.append(img);
+      });
+      strip.addEventListener("scroll", () => {
+        const i = Math.round(strip.scrollLeft / strip.clientWidth);
+        count.textContent = `${i + 1} / ${v.photos.length}`;
+      }, { passive: true });
+      gallery.append(strip);
+      if (v.photos.length > 1) gallery.append(count);
+      box.append(gallery);
+    }
+
+    // Driver and car.
+    const driver = ui.el("div", "review-card review-driver");
+    const initials = item.driver_name.split(" ").map((w) => w[0]).slice(0, 2).join("");
+    const who = ui.el("div");
+    who.append(ui.el("strong", null, item.driver_name),
+      ui.el("span", null, item.driver_rating ? `★ ${item.driver_rating.toFixed(1)} rating` : "New driver, no ratings yet"));
+    const car = ui.el("div", "review-car");
+    const luggage = { small: "Small luggage space", medium: "Medium luggage space", large: "Large luggage space" }[v.luggage];
+    car.append(
+      ui.el("strong", null, `${[v.colour, v.model].filter(Boolean).join(" ")}${v.year ? `, ${v.year}` : ""}`),
+      ui.el("span", null, isPrivate
+        ? `Whole car for you: ${v.seats} passenger seats`
+        : `${v.seats} passenger seats · ${item.seats_available} still free`),
+      ui.el("span", null, [v.has_ac === true ? "Air conditioning" : v.has_ac === false ? "No air conditioning" : null, luggage]
+        .filter(Boolean).join(" · ")),
+    );
+    driver.append(ui.el("span", "avatar", initials), who, car);
+    box.append(driver);
+
+    // Reviews from earlier passengers, so people can judge the driver.
+    try {
+      const said = await api.get(`/drivers/${item.driver_id}/ratings`);
+      box.append(ui.reviews(said, { empty: "No reviews yet: this driver is new on ETIKE." }));
+    } catch (err) {
+      // Reviews are a help, not a must: book without them.
+    }
+
+    // The trip.
+    const trip = ui.el("div", "review-card review-trip");
+    const stops = ui.el("ol", "review-stops");
+    stops.append(ui.el("li", "is-from", item.origin), ui.el("li", "is-to", item.destination));
+    const when = ui.el("p", "review-when", `${ui.day(item.departure_time)} at ${ui.clock(item.departure_time)}`);
+    const kind = ui.el("p", "review-kind", isPrivate ? "Private car: the whole car is yours" : "Shared seat: you share the car");
+    trip.append(stops, when, kind);
+    if (item.pickup_point) {
+      const meet = ui.el("p", "review-meet");
+      meet.append(ui.el("strong", null, "Meeting point"), ui.el("span", null, item.pickup_point));
+      trip.append(meet);
+    }
+    box.append(trip);
+
+    // How you pay, and until when you can cancel for free.
+    const { cancel_cutoff_hours: hours = 2 } = await api.config();
+    // Departure times are Rwanda local time ("2026-11-22T15:00"); keep the
+    // deadline in the same form so it is shown the same way.
+    const cut = new Date(new Date(item.departure_time).getTime() - hours * 3600 * 1000);
+    const pad = (n) => String(n).padStart(2, "0");
+    const until = `${cut.getFullYear()}-${pad(cut.getMonth() + 1)}-${pad(cut.getDate())}T${pad(cut.getHours())}:${pad(cut.getMinutes())}`;
+    const pay = ui.el("div", "review-card review-pay");
+    pay.append(ui.el("strong", null, "Pay with MTN MoMo after the ride"),
+      ui.el("span", null, "Nothing to pay now. When the driver ends the ride, you pay the total below with MTN MoMo in ETIKE."),
+      ui.el("span", null, `Free cancellation until ${ui.day(until)} at ${ui.clock(until)}.`));
+    box.append(pay);
+
+    // Price: per seat (shared) or for the car (private), and the total.
+    // Shared ride: how many seats, right above the price.
+    box.append(document.getElementById("seats-field"));
+    const price = ui.el("dl", "summary review-price");
+    price.id = "review-price";
+    box.append(price);
+    note.hidden = true;
+  }
+
   function updateSummary() {
+    if (!tripId) {
+      const count = isPrivate ? 1 : Number(seatsSelect.value) || 1;
+      fill(document.getElementById("review-price"), [
+        [isPrivate ? "Price for the whole car" : "Price per seat", ui.money(unit)],
+        ...(isPrivate ? [] : [["Seats", String(count)]]),
+        ["Total to pay after the ride", ui.money(unit * count)],
+      ], "Total to pay after the ride");
+      button.textContent = `Confirm booking · ${ui.money(unit * count)}`;
+      button.disabled = left < 1;
+      return;
+    }
     const rows = [
       ["With", tripId ? item.company.name : `${item.driver_name}, ${item.vehicle.model}`],
       ["Type", tripId ? "Bus" : isPrivate ? "Private car (whole car)" : "Shared seat"],
@@ -151,8 +256,8 @@
     else if (!isPrivate) body.seats = Number(seatsSelect.value);
     try {
       const { booking: b } = await ui.busy(button, "Booking…", () => api.post("/bookings", body));
-      // A bus ticket is paid now; a ride is already confirmed.
-      location.href = b.pay_driver
+      // A bus ticket is paid now; a ride is booked and paid after the ride.
+      location.href = b.pay_after_ride
         ? `/bookings.html?new=${b.booking_id}`
         : `/payment.html?booking=${b.booking_id}`;
     } catch (err) {
@@ -172,23 +277,10 @@
     }
   });
 
-  function showPhotos(vehicle) {
-    const box = document.getElementById("photos");
-    if (!vehicle.photos?.length) return;
-    box.hidden = false;
-    vehicle.photos.forEach((p, i) => {
-      const img = ui.el("img");
-      img.src = p.url;
-      img.alt = `${vehicle.model}, photo ${i + 1}`;
-      img.loading = "lazy";
-      box.append(img);
-    });
-  }
-
-  function fill(dl, pairs) {
+  function fill(dl, pairs, totalLabel = "Total") {
     dl.replaceChildren();
     pairs.forEach(([k, v]) => {
-      const row = ui.el("div", k === "Total" ? "summary-total" : null);
+      const row = ui.el("div", k === totalLabel ? "summary-total" : null);
       row.append(ui.el("dt", null, k), ui.el("dd", null, v));
       dl.append(row);
     });

@@ -4,9 +4,9 @@
 
 Find out whether real travellers and drivers can use ETIKE without help, and where they get stuck. Specifically:
 
-ETIKE's current scope is shared and private rides between districts. A ride is confirmed as soon as it is booked, and the passenger pays the driver during or after the ride (cash or MoMo), like a taxi app. There is no online payment for rides; online MoMo payment belongs to the bus phase, which is switched off.
+ETIKE's current scope is shared and private rides between districts. A ride is confirmed as soon as it is booked; the driver starts and ends the ride in the app, and the passenger then pays with MTN MoMo in the app, like a taxi app.
 
-1. Can a traveller find a ride, book it, and understand that they pay the driver?
+1. Can a traveller find a ride, book it, and understand that they pay with MoMo after the ride?
 2. Can a traveller cancel a booking, and do they understand the cancellation deadline?
 3. Can a traveller rate a driver after a ride?
 4. Can a driver add a vehicle and post a ride?
@@ -29,7 +29,7 @@ Before each session, read the participant this (in Kinyarwanda or English, their
 - The session takes about 20 minutes and you can stop at any time without giving a reason.
 - We will take notes and time the tasks. We will not record your face, voice or screen unless you agree separately.
 - We do not keep your name or phone number with the results. You get an ID like P3.
-- Nothing is paid during the session: rides are paid to the driver, and no real ride takes place.
+- No real money moves: MoMo runs on its sandbox during sessions, and no real ride takes place.
 
 Keep signed consent forms (or a note that consent was given) separate from the results, and destroy them when the project ends. Do not put them in the repository.
 
@@ -49,7 +49,7 @@ Read each task out as written. Don't explain the screen or point.
 |---|-----|------|-----------|
 | T1 | Traveller | "You want to travel from Kigali to Huye next Friday. Find what is available." | Results page for Kigali to Huye on that date is showing |
 | T2 | Traveller | "Book one seat in a shared ride you like." (creates an account if asked) | The booking shows as confirmed in My bookings |
-| T3 | Traveller | "How and when will you pay for this ride?" (answer out loud) | Says they pay the driver, during or after the ride |
+| T3 | Traveller | "How and when will you pay for this ride?" (answer out loud) | Says they pay with MTN MoMo after the ride |
 | T4 | Traveller | "Your plans changed. Cancel that booking." | Booking shows as cancelled |
 | T5 | Traveller | "You took a shared ride yesterday. Rate the driver." | Rating saved |
 | T6 | Driver | "Add your car, then offer 3 seats from Kigali to Musanze tomorrow at 7:00 for 3,000 francs each." | Ride posted message shows |

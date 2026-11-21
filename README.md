@@ -2,7 +2,7 @@
 
 **Live site: TBD** (to be filled in once the server is up; see [docs/deployment.md](docs/deployment.md))
 
-ETIKE is a website for travelling between districts in Rwanda. Drivers post the trips they are making; passengers book a **private car** (the whole car, one price shown up front) or a **shared seat** in a car already going their way, and pay the driver during or after the ride. Users are passengers, drivers and admins.
+ETIKE is a website for travelling between districts in Rwanda. Drivers post the trips they are making; passengers book a **private car** (the whole car, one price shown up front) or a **shared seat** in a car already going their way, and pay with MTN MoMo in the app when the ride ends, like a taxi app. Users are passengers, drivers and admins.
 
 **Current scope: private and shared rides between districts.** Bus booking is a future phase (see [Roadmap](#roadmap)); its code is kept but switched off with `FEATURE_BUS_BOOKING`.
 
@@ -105,7 +105,7 @@ docker compose exec api python /data/scripts/add_drivers.py /data/raw/drivers.cs
 
 They start unapproved: each driver then logs in and uploads their documents, and an admin approves them after checking those. Columns and consent rules are in [data/README.md](data/README.md).
 
-`backend/local_test_data.py` (fake TEST accounts and rides for trying the site on a laptop) is ignored by Git and kept out of the server image: it never reaches the repository or a server.
+`backend/local_test_data.py` (sample accounts and rides for trying the site on a laptop, all with `@etike.test` emails) is ignored by Git and kept out of the server image: it never reaches the repository or a server.
 
 ## Logging in
 
@@ -113,7 +113,7 @@ People log in with their **phone number and password**, and sign up on the **Cre
 
 **Driver checks.** Drivers sign up like everyone else (name, phone, password). Once logged in, their driver page has two steps: **1. Your details**, as on their national ID and licence (national ID number, date of birth, at least 18, gender, home district and sector, driving licence number), and **2. Your documents**. In Rwanda, carrying passengers for money needs RURA authorisation, so a driver can't post rides until an admin approves them, and approval needs the details and six documents: national ID, driving licence, RURA authorisation (their own, or their taxi company's or cooperative's with proof they drive for it), vehicle registration card, insurance, and vehicle inspection certificate. Drivers upload them (photo or PDF, under 5 MB) on the driver page, with expiry dates where they expire. Admins see the details next to the documents on the Drivers page and open each document to compare; **Approve** stays locked until the details are in and all six documents are uploaded and in date, and **Reject** takes a reason the driver sees. Details can be corrected until approval. Correcting details or re-uploading a document sends a rejected driver back for review. Details are only shown to the driver and admins, never kept in the browser's login data, and never shown to passengers. The files are personal data: they are kept in a separate Docker volume (`documents`) that Nginx never serves, and only the driver and admins can download them through the API. The list is in `backend/app/driver_documents.py`; confirm it with RURA before going live.
 
-**Test accounts.** When `DEMO_LOGIN` is on, the login page also shows "Just looking around?" with **Passenger**, **Driver** and **Admin** buttons that log straight in to a test account. They only ever use accounts whose name starts with "TEST " (an approved driver for Driver). `DEMO_LOGIN` is on by default with `docker-compose.yml` (your laptop) and off with `docker-compose.prod.yml`: never switch it on for a public server, since it logs in without a password.
+**Demo accounts.** When `DEMO_LOGIN` is on, the login page also shows "Just looking around?" with **Demo traveller** and **Demo driver** buttons that log straight in to those two accounts (found by their reserved `@etike.test` emails, which sign-up refuses; the driver must be approved). There is no one-click admin. `DEMO_LOGIN` is on by default with `docker-compose.yml` (your laptop) and off with `docker-compose.prod.yml`, and the API refuses to start in production with it on, since it logs in without a password.
 
 The API can also log people in with a one-time code sent by SMS (`POST /api/auth/code` and `/api/auth/verify`). It's kept for later and isn't shown on the website.
 
@@ -129,7 +129,14 @@ Admins log in on the website like anyone else and land on **Drivers** (check eac
 
 ## Booking, payment and cancelling
 
-**Shared and private rides** (current scope) are paid to the driver, in cash or by MoMo, during or after the ride. Nothing is paid on the website: the booking is **confirmed** straight away, and both the passenger and the driver get an SMS with the amount. Shared rides take a number of seats; a private ride takes the whole car.
+**Shared and private rides** (current scope) work like a taxi app:
+
+1. **Book.** Tapping a ride opens a review screen: the car's photos and details (colour, model, year, passenger seats, air conditioning, luggage space; for a private car, "Whole car for you: 4 passenger seats"), the driver's name and rating with earlier passengers' written reviews, from and to, day and time, the price, and how you pay (MTN MoMo after the ride) and until when you can cancel for free. **Confirm booking** books it at once; a blue banner at the top confirms it. Shared rides take a number of seats; a private ride takes the whole car. No ticket is needed: the driver sees the booking.
+2. **Meet.** Every ride has a **meeting point** the driver writes when posting it ("Nyabugogo bus park, main gate"), shown before booking and in the booking. After booking, passenger and driver can reach each other: **Call** and **WhatsApp** buttons with each other's number, and a **chat** in ETIKE for each booking ("I'm at the gate, red jacket"), with a red count on the tab bar for new messages. Numbers are shown only to the two people on that booking, and only until a day after the ride; the chat stays readable but closes for new messages then. Search results never show phone numbers.
+3. **Ride.** On the driver's phone, **My trips** shows today's booked rides. The driver taps **Start ride** (from one hour before departure) and **End ride** on arrival. The passenger's My bookings follows along ("On the way", then "Ride ended").
+4. **Trip on the map.** With the driver's permission, their phone records where the ride started and ended, and where the car is about every 30 seconds while it's on (the screen stays awake for this; a website can't track in the background, so the driver keeps ETIKE open). The driver, the ride's passengers and admins can open the trip on a map (`/trip.html`): the route driven, when and near which town it started and ended, distance and time. Passengers can follow the car live. It's free: the phone's GPS through the browser, and our own district map; no Google Maps or API key. A driver who doesn't allow location can still drive; the trip just isn't on the map.
+5. **Review.** After the ride the passenger rates the driver (1 to 5) and can write a review. Reviews are public on the driver's rides with the reviewer's first name and initial only ("Divine I."), and drivers see theirs on My trips.
+6. **Pay.** When the ride ends, each passenger sees **Pay with MoMo** and pays the fare in the app (a failed payment can be tried again). The driver's My trips shows each payment as it comes in, with a banner, and both get an SMS when SMS is set up.
 
 **Bus tickets** (future phase, only with `FEATURE_BUS_BOOKING=true`) are paid before travel:
 
@@ -143,13 +150,13 @@ After a shared or private ride has left, the passenger can rate the driver once,
 
 **Seats.** On buses (future phase), passengers choose their seats on a seat map drawn as rows of 2 + aisle + 2. Shared rides just take a number of seats. The map is drawn from the number of seats, so it is a close guide, not each model's exact layout. A private ride takes every seat. Each seat is held in `booking_seats`, whose unique constraints make it impossible for two bookings to hold the same seat.
 
-**Tickets.** Every confirmed booking has a ticket page with a QR code (made for bus boarding; rides have one too). Scanning it opens `/verify.html`, which says **Valid** or **Not valid** (cancelled, unpaid or already left) and shows the trip, seats and the passenger's first name and initial. The QR code holds a signed link, so it can't be forged, and validity is checked live, so a cancelled ticket stops working. The link uses the address the page was opened with: to scan with a phone on the same Wi-Fi, open the site on the laptop by its network address (for example `http://192.168.1.20`), not `localhost`.
+**Tickets** (bus phase only; rides need no ticket). A confirmed bus booking has a ticket page with a QR code. Scanning it opens `/verify.html`, which says **Valid** or **Not valid** (cancelled, unpaid or already left) and shows the trip, seats and the passenger's first name and initial. The QR code holds a signed link, so it can't be forged, and validity is checked live, so a cancelled ticket stops working. The link uses the address the page was opened with: to scan with a phone on the same Wi-Fi, open the site on the laptop by its network address (for example `http://192.168.1.20`), not `localhost`.
 
 **Car photos.** Drivers add up to 3 photos per car on the driver page (JPEG, PNG or WebP, under 3 MB; the server checks the file's content, not its name). Passengers see them on shared and private ride results and on the booking page. Files live in the `uploads` Docker volume and Nginx serves them at `/uploads/`.
 
 ## Payments with MTN MoMo (sandbox)
 
-Only bus tickets are paid on the website, so MoMo payments are part of the bus phase: with `FEATURE_BUS_BOOKING` off they are not used. The integration is kept and tested.
+Rides are paid with MoMo after the driver ends them; bus tickets (future phase) before travel.
 
 Payments use the MTN MoMo Collections API ("request to pay"): the passenger gets a prompt on their phone and approves with their MoMo PIN.
 
@@ -206,10 +213,19 @@ All responses are JSON. Errors always look like `{"error": {"code": "...", "mess
 | `GET /api/rides/<id>` | anyone | One ride offer |
 | `GET /api/rides/<id>/seats` | anyone | Seat map and taken seats of a ride |
 | `GET /api/drivers/vehicles` | driver | My vehicles |
-| `POST /api/drivers/vehicles` | driver | Add a vehicle (`plate_number`, `model`, `seats`) |
+| `POST /api/drivers/vehicles` | driver | Add a vehicle (`plate_number`, `model`, `colour`, `year`, `seats`, `has_ac`, `luggage`); add at least one photo before posting rides with it |
 | `POST /api/drivers/vehicles/<id>/photos` | driver | Upload a car photo (form field `photo`) |
 | `DELETE /api/drivers/vehicles/<id>/photos/<photo_id>` | driver | Remove a car photo |
-| `POST /api/rides` | approved driver | Post a ride (`vehicle_id`, `origin`, `destination`, `ride_type`, `departure_time`, `price`, `seats_available`) |
+| `GET /api/drivers/rides` | driver | My rides from two days ago onwards, with passengers and what each has paid |
+| `POST /api/rides/<id>/start` | driver | Start my ride (from one hour before departure; needs a passenger) |
+| `POST /api/rides/<id>/end` | driver | End my ride: its passengers can now pay |
+| `POST /api/rides/<id>/locations` | driver | Where the car is now (`lat`, `lng`, `accuracy`), while the ride is on; start and end also accept a position |
+| `GET /api/bookings/<id>/messages` | the booking's passenger or its ride's driver | The chat for this booking (marks the other person's messages read), the other person's name and phone (while contact is open) |
+| `POST /api/bookings/<id>/messages` | the same two | Send a message (`body`, up to 1,000 characters), until a day after the ride |
+| `GET /api/messages/unread` | logged in | New messages, in total and per booking (for the tab bar badge) |
+| `GET /api/rides/<id>/track` | ride's driver, its passengers, admins | The trip on the map: positions, start and end, distance |
+| `PUT /api/drivers/vehicles/<id>` | driver | Correct my car's details (`model`, `colour`, `year`, `seats`, `has_ac`, `luggage`) |
+| `POST /api/rides` | approved driver | Post a ride (`vehicle_id`, `origin`, `destination`, `ride_type`, `departure_time`, `price`, `seats_available`, `pickup_point`) |
 | `POST /api/bookings` | passenger | Book (`trip_id` or `offer_id`, and `seat_numbers` chosen on the map, or `seats` for the lowest free ones). A bus booking starts `pending` with its seats held; a ride is `confirmed` at once. The price is worked out by the server |
 | `GET /api/bookings/mine` | logged in | My bookings |
 | `GET /api/bookings/<id>` | logged in | One of my bookings |

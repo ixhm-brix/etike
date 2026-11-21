@@ -1,0 +1,13 @@
+Photos of the sample cars, from Wikimedia Commons. Local sample data only; not in Git.
+Everyday photos (streets and car parks), not motor shows. Number plates are blurred.
+
+atto2.jpg: "BYD Atto 2 DM-i IMG 6083.jpg" by Alexander Migl, CC BY-SA 4.0, https://commons.wikimedia.org/wiki/File%3ABYD_Atto_2_DM-i_IMG_6083.jpg (plate blurred)
+prado.jpg: "2022 Toyota Land Cruiser Prado 150 4.0 VX V6 in Gray Metallic, 06-12-2024.jpg" by Ethan Llamas, CC BY-SA 4.0, https://commons.wikimedia.org/wiki/File%3A2022_Toyota_Land_Cruiser_Prado_150_4.0_VX_V6_in_Gray_Metallic%2C_06-12-2024.jpg (plate blurred)
+jetour_t2.jpg: "Jetour Shanhai T2 002.jpg" by JustAnotherCarDesigner, CC0, https://commons.wikimedia.org/wiki/File%3AJetour_Shanhai_T2_002.jpg (plate blurred)
+rav4_old.jpg: "'06-'08 Toyota RAV4 Sport.JPG" by Bull-Doser, public domain, https://commons.wikimedia.org/wiki/File:%2706-%2708_Toyota_RAV4_Sport.JPG
+rav4.jpg: "2020 Toyota RAV4 2.5 LTD in Urban Khaki, front right, 06-20-2024.jpg" by Ethan Llamas, CC BY-SA 4.0, https://commons.wikimedia.org/wiki/File:2020_Toyota_RAV4_2.5_LTD_in_Urban_Khaki,_front_right,_06-20-2024.jpg (a background plate blurred)
+x5.jpg: "2007-BMW-X5.jpg" by IFCAR, public domain, https://commons.wikimedia.org/wiki/File:2007-BMW-X5.jpg (plate blurred)
+neta.jpg: "Neta Aya 001.jpg" by JustAnotherCarDesigner, CC0, https://commons.wikimedia.org/wiki/File:Neta_Aya_001.jpg (plate blurred)
+hiace.jpg: "2019 Toyota HiAce (front).jpg" by User3204, CC BY-SA 4.0, https://commons.wikimedia.org/wiki/File:2019_Toyota_HiAce_(front).jpg (plate blurred)
+seal.jpg: "BYD Seal street parked.jpg" by Woshifongge2006, CC BY-SA 4.0, https://commons.wikimedia.org/wiki/File:BYD_Seal_street_parked.jpg
+dashing.jpg: "Jetour Dashing 007.jpg" by JustAnotherCarDesigner, CC0, https://commons.wikimedia.org/wiki/File:Jetour_Dashing_007.jpg (plate blurred)

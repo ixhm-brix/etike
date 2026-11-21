@@ -1,6 +1,8 @@
 // Search results: ride offers (and bus trips, when that future phase is
 // switched on) from the API, never made up.
 (async function results() {
+  // Prices are for members. Not logged in: log in, then come back here.
+  if (!auth.require()) return;
   const params = new URLSearchParams(location.search);
   const origin = params.get("origin");
   const destination = params.get("destination");
@@ -15,13 +17,13 @@
   const msg = document.getElementById("msg");
 
   if (!origin || !destination) {
-    location.replace("/search.html");
+    location.replace("/#trip");
     return;
   }
   document.title = `${origin} to ${destination} – ETIKE`;
   document.getElementById("title").textContent = `${origin} to ${destination}`;
   const change = ui.el("a", null, "Change search");
-  change.href = `/search.html?${params}`;
+  change.href = `/?${params}#trip`;
   document.getElementById("subtitle").append(date ? `${ui.day(date)}. ` : "Any day. ", change);
 
   // Tabs to switch between bus, shared seat and private car.
@@ -52,18 +54,46 @@
     loading.hidden = true;
     if (!items.length) {
       const what = { bus: "bus trips", shared: "shared seats", private: "private cars" }[type];
-      list.replaceWith(
-        ui.empty(`No ${what} found for this route yet`, "Try another day or another way to travel.", {
-          href: `/search.html?${params}`,
-          text: "Change search",
-        }),
+      const box = ui.empty(
+        date ? `No ${what} on ${ui.day(date)}` : `No ${what} found for this route yet`,
+        "Try another day or another way to travel.",
+        { href: `/?${params}#trip`, text: "Change search" },
       );
+      list.replaceWith(box);
+      if (date) box.append(await otherDays(what));
       return;
     }
     list.append(...items);
   } catch (err) {
     loading.hidden = true;
     ui.say(msg, err.message);
+  }
+
+  // Nothing on the chosen day: offer the next days that do have some, so
+  // people don't give up on a route that runs tomorrow.
+  async function otherDays(what) {
+    const any = new URLSearchParams({ origin, destination });
+    if (type !== "bus") any.set("type", type);
+    try {
+      const found = type === "bus"
+        ? (await api.get(`/trips?${any}`)).trips
+        : (await api.get(`/rides?${any}`)).rides;
+      const days = [...new Set(found.map((x) => x.departure_time.slice(0, 10)))]
+        .filter((d) => d !== date).sort().slice(0, 3);
+      const box = ui.el("div", "other-days");
+      if (!days.length) return box;
+      box.append(ui.el("span", null, `Next days with ${what}:`));
+      days.forEach((d) => {
+        const p = new URLSearchParams(params);
+        p.set("date", d);
+        const a = ui.el("a", "btn-gray btn-sm", ui.day(d));
+        a.href = `?${p}`;
+        box.append(a);
+      });
+      return box;
+    } catch (err) {
+      return ui.el("span"); // the empty message above is enough
+    }
   }
 
   function card({ time, price, meta, note, href, photo }) {
@@ -105,8 +135,12 @@
     return card({
       time: ui.when(r.departure_time),
       price: ui.money(r.price),
-      meta: `${r.driver_name}${r.driver_rating ? ` (${r.driver_rating}/5)` : ""} · ${r.vehicle.model}`,
-      note: isPrivate ? `whole car · ${r.seats_available} seats` : `per seat · ${r.seats_available} left`,
+      meta: `${r.driver_name}${r.driver_rating ? ` ★ ${r.driver_rating.toFixed(1)}` : ""} · `
+        + `${[r.vehicle.colour, r.vehicle.model].filter(Boolean).join(" ")}${r.vehicle.year ? `, ${r.vehicle.year}` : ""}`
+        + `${r.vehicle.has_ac ? " · AC" : ""}`,
+      note: isPrivate
+        ? `whole car · ${r.vehicle.seats} passenger seats`
+        : `per seat · ${r.seats_available} left`,
       href: `/booking.html?offer=${r.offer_id}&seats=${seats}`,
       photo: r.vehicle.photos?.[0],
     });

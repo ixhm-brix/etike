@@ -3,10 +3,15 @@ from datetime import timedelta
 from flask import current_app
 
 from ..extensions import db
+from ..validation import local_now
 from .user import utcnow
 
 BOOKING_TYPES = ("bus", "shared", "private")
 BOOKING_STATUSES = ("pending", "confirmed", "cancelled")
+
+
+# How long after departure passenger and driver can still reach each other.
+CONTACT_WINDOW = timedelta(days=1)
 
 
 class Booking(db.Model):
@@ -49,6 +54,21 @@ class Booking(db.Model):
         hours = current_app.config["CANCEL_CUTOFF_HOURS"]
         return target.departure_time - timedelta(hours=hours)
 
+    @property
+    def contact_open(self):
+        """Passenger and driver of a ride booking can call and message each
+        other from booking until a day after the ride."""
+        if self.offer is None or self.status != "confirmed":
+            return False
+        return local_now() <= self.offer.departure_time + CONTACT_WINDOW
+
+    @property
+    def can_pay(self):
+        """A ride is paid once it has ended, if not paid (or paying) yet."""
+        if self.offer is None or self.status != "confirmed" or self.offer.ended_at is None:
+            return False
+        return self.payment is None or self.payment.status == "failed"
+
     def to_dict(self):
         target = self.trip or self.offer
         return {
@@ -69,8 +89,17 @@ class Booking(db.Model):
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "payment_status": self.payment.status if self.payment else None,
             "refund_status": self.payment.refund_status if self.payment else None,
-            # Rides are paid to the driver, not on the website.
-            "pay_driver": self.offer_id is not None,
+            # Rides are paid with MoMo after the driver ends the ride.
+            "pay_after_ride": self.offer_id is not None,
+            "ride_progress": self.offer.progress if self.offer else None,
+            "pickup_point": self.offer.pickup_point if self.offer else None,
+            # Only between the two people on this ride, and only for a while.
+            "driver_phone": self.offer.driver.user.phone if self.contact_open else None,
+            # The plate helps the passenger find the right car; only once booked.
+            "vehicle": {"model": self.offer.vehicle.model, "colour": self.offer.vehicle.colour,
+                        "plate_number": self.offer.vehicle.plate_number}
+            if self.offer and self.status == "confirmed" else None,
+            "can_pay": self.can_pay,
             "cancel_until": self.cancel_until.isoformat(timespec="minutes"),
             "driver_id": self.offer.driver_id if self.offer else None,
             "rating": self.rating.to_dict() if self.rating else None,

@@ -26,7 +26,7 @@ MoMo and Africa's Talking are optional: without their keys, payments answer 503 
 
 ## Scope
 
-The platform currently covers **private and shared rides** between districts: drivers post rides, passengers book them and pay the driver directly. **Bus booking is a future phase**: bus companies would need a full operator system (fleets, schedules, ticket scanning), which is a separate product. Its modules below are marked *future phase*. They stay in the code and are tested, but are switched off with `FEATURE_BUS_BOOKING` (default off, `app/features.py`):
+The platform currently covers **private and shared rides** between districts: drivers post rides, passengers book them, the driver starts and ends the ride in the app, and passengers then pay with MTN MoMo. **Bus booking is a future phase**: bus companies would need a full operator system (fleets, schedules, ticket scanning), which is a separate product. Its modules below are marked *future phase*. They stay in the code and are tested, but are switched off with `FEATURE_BUS_BOOKING` (default off, `app/features.py`):
 
 - bus endpoints (`/api/trips...`) and admin company endpoints answer 404 "Bus booking is not available yet";
 - `POST /api/bookings` answers 400 for a bus booking;
@@ -39,7 +39,7 @@ No tables or data are removed; the booking service stays generic and still suppo
 
 | Module | Where | What it does |
 |--------|-------|--------------|
-| Models | `app/models/` | `users`, `drivers`, `driver_documents`, `vehicles`, `vehicle_photos`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, `booking_seats`, `payments`, `ratings`, `login_codes`, with CHECK constraints for allowed values, seat counts and scores |
+| Models | `app/models/` | `users`, `drivers`, `driver_documents`, `messages`, `ride_locations`, `vehicles`, `vehicle_photos`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, `booking_seats`, `payments`, `ratings`, `login_codes`, with CHECK constraints for allowed values, seat counts and scores |
 | Auth | `app/auth/` | Sign up (passenger or driver) and log in with phone number and password; `/me`. One-click test-account login only when `DEMO_LOGIN` is on (never in production). SMS-code login exists in the API but is not on the website. JWT tokens valid 12 hours (Flask-JWT-Extended), Werkzeug password hashes, login codes stored as keyed hashes, and the `role_required` decorator |
 | Search | `app/routes/search.py` | Places, routes, ride offers, and (future phase) bus trips. Public. Also `GET /api/config` |
 | Drivers | `app/routes/drivers.py`, `app/driver_documents.py` | Legal documents (upload, replace, download your own), vehicles, and posting rides (approved drivers only) |
@@ -52,7 +52,7 @@ No tables or data are removed; the booking service stays generic and still suppo
 | Places | `app/places.py` | The 28 places people travel between (Kigali's three districts count as one) and old town names such as Butare for Huye |
 | Commands | `app/cli.py` | `flask create-admin`, `flask approve-driver`, `flask expire-bookings`, `flask momo-create-user` (sandbox) |
 
-Data gets in through `data/scripts/clean_data.py` and `load_data.py` (districts and routes), and `add_drivers.py` (real drivers who gave consent, created unapproved), from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded. `backend/local_test_data.py` makes fake TEST data for laptops; it is ignored by Git and by the Docker build.
+Data gets in through `data/scripts/clean_data.py` and `load_data.py` (districts and routes), and `add_drivers.py` (real drivers who gave consent, created unapproved), from files the team collected (see [data/README.md](../data/README.md)). Nothing is seeded. `backend/local_test_data.py` makes sample data for laptops (accounts marked by `@etike.test` emails); it is ignored by Git and by the Docker build.
 
 ## Booking without double booking
 
@@ -91,7 +91,7 @@ Rules the service applies:
 
 ## Paying for a booking *(future phase, behind FEATURE_BUS_BOOKING)*
 
-Only **bus tickets** are paid on the website. A new bus booking is `pending` and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default). The passenger pays with MTN MoMo and approves on their own phone:
+**Rides** are paid after the ride (next section). **Bus tickets** are paid before travel: a new bus booking is `pending` and holds its seats for `BOOKING_HOLD_MINUTES` (15 by default). The passenger pays with MTN MoMo and approves on their own phone:
 
 ```mermaid
 sequenceDiagram
@@ -145,7 +145,11 @@ Rules the payment service applies:
 
 ## Rides, cancelling and refunds
 
-- **Shared and private rides are not paid on the website.** The booking is `confirmed` as soon as the seats are taken (under the same row lock), and the passenger pays the driver during or after the ride. `POST /api/payments` refuses ride bookings.
+- **Rides are paid after the ride, like a taxi app.** The booking is `confirmed` as soon as the seats are taken (under the same row lock); no ticket is needed. The driver taps Start ride (`ride_offers.started_at`, allowed from one hour before departure and only with a passenger) and End ride (`ended_at`); `RideOffer.progress` is `scheduled`, `in_progress` or `ended`. Only then does `POST /api/payments` accept the booking (`Booking.can_pay`), for the server's price. A ride payment that fails can be tried again (the same `payments` row gets a new reference); it never cancels the booking. When it succeeds, the driver's My trips shows it (the page checks every 10 seconds) and `sms_service.ride_paid` texts the driver and the passenger. A ride that has started can't be cancelled.
+- **Cars.** A car has its plate, model, colour, year, passenger seats, air conditioning and luggage space (small, medium, large), and up to 3 photos. Rides can only be posted with a complete car (`Vehicle.complete`: every detail and at least one photo), so passengers always see what they are booking. The plate is shown only to passengers who booked, to find the car.
+- **Reviews.** `ratings` (1 to 5, optional comment, one per ride booking) are public through `GET /api/drivers/<id>/ratings`, written reviews first, with the reviewer as first name and initial only.
+- **Meeting and contact.** `ride_offers.pickup_point` (required for new rides) says where the driver picks people up. `Booking.contact_open` (a confirmed ride booking, until a day after departure) decides when the passenger sees the driver's phone (`driver_phone` in the booking) and the driver sees the passenger's (in `GET /api/drivers/rides`); never in search results. `messages` holds one chat per booking between those two people only (`app/services/message_service.py`); opening it marks the other side's messages read, and `GET /api/messages/unread` feeds the badges. Pages check for new messages every few seconds while open; there are no push notifications.
+- **Trip recording.** With the driver's permission (browser Geolocation; Nginx allows it only for our own pages), Start ride and End ride carry the phone's position, and the driver's page sends one about every 30 seconds while the ride is on, keeping the screen awake (Wake Lock). They are rows in `ride_locations` (`start`, `track`, `end`; latitude, longitude, accuracy, time). The server only accepts positions in or near Rwanda, no vaguer than 1 km, at most one every 15 seconds and 2,000 per ride. `GET /api/rides/<id>/track` returns them, with the distance driven, to the ride's driver, its passengers and admins only. `trip.html` draws them on our own district map; no map provider or key is needed. A web page can't track in the background, so tracking runs while the driver's page is open. Locations are personal data: drivers are told on their page, and they are kept with the ride.
 - **Cancelling.** An unpaid booking can be cancelled at any time. A confirmed booking can be cancelled until `CANCEL_CUTOFF_HOURS` (2 by default) before departure; after that the API answers 409 `too_late_to_cancel`. Cancelling returns the seats and reopens a `full` ride.
 - **Refunds.** Cancelling a paid bus ticket sets `payments.refund_status` to `due` (the payment itself stays `success`, because the money was received). Admins list refunds due, send the money to the passenger's MoMo number by hand, and mark each one `refunded`. Automatic refunds would need MoMo's Disbursements product and are not built.
 - **SMS.** The passenger, and the driver for a ride, are told about a confirmed booking and about a cancellation.

@@ -105,6 +105,9 @@ def _own_confirmed(booking_id):
     booking = db.session.get(Booking, booking_id)
     if booking is None or booking.user_id != current_user().user_id:
         raise not_found("Booking not found.")
+    if booking.offer_id is not None:
+        # Like a taxi app: a ride needs no ticket, the booking is the proof.
+        raise ApiError(404, "no_ticket", "Rides have no ticket: the driver sees your booking.")
     if booking.status != "confirmed":
         raise ApiError(409, "no_ticket", "There is no ticket until the booking is confirmed.")
     return booking

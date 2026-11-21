@@ -168,6 +168,9 @@ def cancel(user, booking_id):
             raise not_found("Booking not found.")
         if booking.status == "cancelled":
             raise conflict("This booking is already cancelled.", "already_cancelled")
+        if booking.offer is not None and booking.offer.started_at is not None:
+            raise conflict("This ride has already started, so it can't be cancelled.",
+                           "ride_started")
         if booking.payment and booking.payment.status == "pending":
             raise conflict(
                 "A payment for this booking is in progress. Wait for it to finish.",

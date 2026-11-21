@@ -1,6 +1,10 @@
 """Paying for a booking with MTN MoMo (Collections API, "request to pay").
 
-1. start(): the passenger asks to pay their pending booking. We save a
+Bus tickets are paid before travel (a pending booking). Rides are paid
+after the driver ends the ride (a confirmed booking whose ride has ended);
+a failed ride payment can be tried again.
+
+1. start(): the passenger asks to pay their booking. We save a
    pending payment with a new UUID reference and send MoMo a request to
    pay. The amount always comes from the booking, never from the client.
 2. MoMo asks the passenger to approve on their phone with their MoMo PIN.
@@ -19,7 +23,7 @@ import uuid
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
 
-from ..errors import ApiError, bad_request, conflict, not_found
+from ..errors import ApiError, conflict, not_found
 from ..extensions import db
 from ..models import Booking, Payment
 from . import booking_service, momo_client, sms_service
@@ -62,7 +66,7 @@ def start(user, booking_id, phone):
     if booking is None or booking.user_id != user.user_id:
         raise not_found("Booking not found.")
     if booking.offer_id is not None:
-        raise bad_request("Shared and private rides are paid to the driver, not online.")
+        return _start_ride_payment(client, booking, phone)
     if booking.payment is not None:
         if booking.payment.status == "pending":
             raise conflict("A payment for this booking is already in progress.",
@@ -102,6 +106,49 @@ def start(user, booking_id, phone):
         # MoMo never accepted the request, so nothing was charged. Remove the
         # payment so the passenger can try again while the seats are held.
         db.session.delete(payment)
+        db.session.commit()
+        raise ApiError(502, "payment_provider_error",
+                       "We could not reach MoMo. Please try again in a moment.") from None
+    return payment
+
+
+def _start_ride_payment(client, booking, phone):
+    """Pay for a ride after it has ended."""
+    if booking.status != "confirmed":
+        raise conflict("This booking was cancelled.", "booking_closed")
+    if booking.offer.ended_at is None:
+        raise conflict("You pay once the driver ends the ride.", "ride_not_ended")
+    payment = booking.payment
+    if payment is not None and payment.status == "pending":
+        raise conflict("A payment for this ride is already in progress.", "payment_in_progress")
+    if payment is not None and payment.status == "success":
+        raise conflict("This ride is already paid.", "already_paid")
+    if payment is None:
+        payment = Payment(booking_id=booking.booking_id, method="mtn_momo")
+        db.session.add(payment)
+    # A new attempt (or a retry after a failed one): fresh reference.
+    payment.amount = booking.total_price
+    payment.status = "pending"
+    payment.failure_reason = None
+    payment.reference = str(uuid.uuid4())
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise conflict("A payment for this ride is already in progress.",
+                       "payment_in_progress") from None
+    try:
+        client.request_to_pay(
+            reference=payment.reference,
+            amount=payment.amount,
+            phone=phone,
+            external_id=booking.booking_id,
+            message=f"ETIKE ride {booking.booking_id}",
+        )
+    except momo_client.MomoError:
+        # Nothing was charged: mark it failed so the passenger can try again.
+        payment.status = "failed"
+        payment.failure_reason = "NOT_SENT"
         db.session.commit()
         raise ApiError(502, "payment_provider_error",
                        "We could not reach MoMo. Please try again in a moment.") from None
@@ -163,7 +210,14 @@ def settle(payment_id, outcome, reason=None):
         booking = db.session.get(Booking, payment.booking_id, with_for_update=True,
                                  populate_existing=True)
         payment.status = outcome
-        if outcome == "success":
+        ride_paid = False
+        if booking.offer_id is not None:
+            # A ride is already booked; the payment only settles the fare.
+            # A failed payment can simply be tried again.
+            ride_paid = outcome == "success"
+            if not ride_paid:
+                payment.failure_reason = reason
+        elif outcome == "success":
             confirmed = booking_service.confirm(booking)
         else:
             payment.failure_reason = reason
@@ -174,6 +228,9 @@ def settle(payment_id, outcome, reason=None):
         db.session.rollback()
         raise
 
+    if ride_paid:
+        # Tell the driver the money came in (and the passenger, a receipt).
+        sms_service.ride_paid(booking)
     if confirmed:
         # After the commit, so an SMS problem can never undo the booking.
         sms_service.booking_confirmed(booking)

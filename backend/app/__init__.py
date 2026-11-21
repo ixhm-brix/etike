@@ -24,7 +24,7 @@ def check_production(config):
     if config["SECRET_KEY"] == config["JWT_SECRET_KEY"]:
         raise RuntimeError("SECRET_KEY and JWT_SECRET_KEY must be different.")
     if config.get("DEMO_LOGIN"):
-        # Demo login opens TEST accounts without a password.
+        # Demo login opens test accounts without a password.
         raise RuntimeError("DEMO_LOGIN must be off in production.")
 
 
@@ -63,6 +63,7 @@ def create_app(config_name=None):
     from .routes.bookings import bookings_bp
     from .routes.drivers import drivers_bp
     from .routes.health import health_bp
+    from .routes.messages import messages_bp
     from .routes.payments import payments_bp
     from .routes.ratings import ratings_bp
     from .routes.search import search_bp
@@ -77,6 +78,7 @@ def create_app(config_name=None):
     app.register_blueprint(ratings_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/api")
     app.register_blueprint(tickets_bp, url_prefix="/api")
+    app.register_blueprint(messages_bp, url_prefix="/api")
 
     register_error_handlers(app)
     register_jwt_errors(jwt)

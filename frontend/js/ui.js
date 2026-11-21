@@ -106,5 +106,87 @@ const ui = (() => {
     }
   }
 
-  return { money, when, clock, day, date, today, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
+  // A banner at the top of the screen that confirms something happened,
+  // e.g. "Your ride is booked". Hides itself after a few seconds.
+  function toast(title, text = "", tone = "info") {
+    document.querySelector(".toast")?.remove();
+    const box = el("div", `toast is-hidden${tone === "good" ? " is-good" : ""}`);
+    box.setAttribute("role", "status");
+    box.append(title);
+    if (text) box.append(el("span", null, text));
+    document.body.append(box);
+    requestAnimationFrame(() => requestAnimationFrame(() => box.classList.remove("is-hidden")));
+    setTimeout(() => {
+      box.classList.add("is-hidden");
+      setTimeout(() => box.remove(), 400);
+    }, 6000);
+    box.addEventListener("click", () => box.classList.add("is-hidden"));
+  }
+
+  // Call, WhatsApp and Message buttons for the other person on a ride.
+  // phone is "+2507…" (or null once the contact window has closed); unread
+  // is the number of new messages, shown on the Message button.
+  function contact({ phone, bookingId, unread = 0, name = "" }) {
+    const box = el("div", "contact");
+    if (phone) {
+      const call = el("a", "btn-gray btn-sm", "Call");
+      call.href = `tel:${phone}`;
+      call.setAttribute("aria-label", `Call ${name}`.trim());
+      const wa = el("a", "btn-gray btn-sm", "WhatsApp");
+      wa.href = `https://wa.me/${phone.replace(/^\+/, "")}`;
+      wa.target = "_blank";
+      wa.rel = "noopener";
+      wa.setAttribute("aria-label", `WhatsApp ${name}`.trim());
+      box.append(call, wa);
+    }
+    const chat = el("a", "btn-black btn-sm", "Message");
+    chat.href = `/chat.html?booking=${bookingId}`;
+    if (unread) {
+      chat.append(el("span", "badge", String(unread)));
+      chat.setAttribute("aria-label", `Message ${name}, ${unread} new`.trim());
+    }
+    box.append(chat);
+    return box;
+  }
+
+  // What passengers say about a driver: average, count, then each review
+  // (stars, comment, "Divine I. · Kigali to Huye · 12 Nov"). Shows `limit`
+  // at first, with a button for the rest.
+  function reviews(data, { limit = 3, empty = "No reviews yet." } = {}) {
+    const box = el("section", "reviews");
+    const head = el("div", "reviews-head");
+    head.append(el("strong", null, "What passengers say"));
+    if (data.count) {
+      head.append(el("span", null, `★ ${data.avg_rating.toFixed(1)} · ${data.count} review${data.count > 1 ? "s" : ""}`));
+    }
+    box.append(head);
+    if (!data.recent.length) {
+      box.append(el("p", "reviews-empty", empty));
+      return box;
+    }
+    const list = el("ul", "reviews-list");
+    data.recent.forEach((r, i) => {
+      const li = el("li", "review");
+      const stars = el("span", "review-stars", "★".repeat(r.score) + "☆".repeat(5 - r.score));
+      stars.setAttribute("aria-label", `${r.score} out of 5`);
+      li.append(stars);
+      if (r.comment) li.append(el("p", null, r.comment));
+      li.append(el("span", "review-by", [r.by, r.route, date(r.created_at)].filter(Boolean).join(" · ")));
+      li.hidden = i >= limit;
+      list.append(li);
+    });
+    box.append(list);
+    if (data.recent.length > limit) {
+      const more = el("button", "btn-gray btn-sm", `Show all ${data.recent.length} reviews`);
+      more.type = "button";
+      more.addEventListener("click", () => {
+        list.querySelectorAll("li[hidden]").forEach((li) => { li.hidden = false; });
+        more.remove();
+      });
+      box.append(more);
+    }
+    return box;
+  }
+
+  return { money, when, clock, day, date, today, toast, contact, reviews, fillPlaces, say, formError, clearErrors, busy, el, empty, openFile };
 })();

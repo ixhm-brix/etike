@@ -7,7 +7,10 @@ const MODE_CTA = {
   shared: "Find a shared seat",
 };
 
-// Trip search form and the street map, kept in sync.
+// Trip search form and the street map, kept in sync. This is the one search
+// page, logged in or not: anyone can choose a route and see it on the map.
+// Seeing prices needs an account, so a visitor goes to log in (or sign up)
+// and comes straight back to the results with the same search.
 (function tripSearch() {
   const form = document.getElementById("trip");
   if (!form) return;
@@ -25,11 +28,21 @@ const MODE_CTA = {
     names.map((d) => `<option value="${d}">${d}</option>`).join("");
   from.innerHTML = options("Leaving from");
   to.innerHTML = options("Going to");
-  from.value = "Kigali";
 
   const today = new Date().toISOString().slice(0, 10);
   date.min = today;
-  date.value = today;
+
+  // Start from the search in the address (from "Change search", or a link),
+  // or from Kigali today.
+  const params = new URLSearchParams(location.search);
+  const pick = (select, value) => { if (names.includes(value)) select.value = value; };
+  from.value = "Kigali";
+  pick(from, params.get("origin"));
+  pick(to, params.get("destination"));
+  date.value = params.get("date") >= today ? params.get("date") : today;
+  const mode = { private: "car", shared: "shared", bus: "bus" }[params.get("type")];
+  if (mode && form.querySelector(`input[name="mode"][value="${mode}"]`)) form.elements.mode.value = mode;
+  if (params.get("seats")) form.elements.seats.value = params.get("seats");
 
   const map = RwandaMap.render(document.getElementById("map-canvas"), {
     onPick(role, name) {
@@ -93,7 +106,9 @@ const MODE_CTA = {
       type,
       seats: form.elements.seats.value,
     });
-    location.href = `/results.html?${query}`;
+    const results = `/results.html?${query}`;
+    // Prices are for members: log in first, then land on these results.
+    location.href = auth.user() ? results : `/login.html?next=${encodeURIComponent(results)}`;
   });
 })();
 

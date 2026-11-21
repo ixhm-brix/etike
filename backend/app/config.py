@@ -21,7 +21,7 @@ class BaseConfig:
     )
 
     # "Try it with a test account" buttons on the login page. They log in to
-    # the TEST accounts without a password, so never switch this on for a
+    # the test accounts without a password, so never switch this on for a
     # public server. On by default only in development.
     DEMO_LOGIN = os.environ.get("DEMO_LOGIN", "").strip().lower() in ("1", "true", "yes", "on")
 

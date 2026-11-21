@@ -81,18 +81,14 @@ def test_search_rides_hides_unapproved_drivers(client, make_offer):
     assert response.get_json()["rides"] == []
 
 
-def test_approved_driver_posts_ride_that_shows_in_search(app, client):
+def test_approved_driver_posts_ride_that_shows_in_search(app, client, add_car):
     response = register(client, role="driver")
     driver = auth_header(response)
     with app.app_context():
         user = db.session.get(User, response.get_json()["user"]["user_id"])
         db.session.query(Driver).filter_by(user_id=user.user_id).update({"is_approved": True})
         db.session.commit()
-    vehicle = client.post(
-        "/api/drivers/vehicles",
-        json={"plate_number": "rab 123 a", "model": "Toyota Noah", "seats": 6},
-        headers=driver,
-    ).get_json()["vehicle"]
+    vehicle = add_car(driver, "rab 123 a", seats=6)
     departure = (local_now() + timedelta(days=2)).replace(microsecond=0).isoformat()
 
     posted = client.post(
@@ -105,6 +101,7 @@ def test_approved_driver_posts_ride_that_shows_in_search(app, client):
             "departure_time": departure,
             "price": 9000,
             "seats_available": 4,
+            "pickup_point": "Rusizi bus park, main gate",
         },
         headers=driver,
     )
@@ -117,17 +114,13 @@ def test_approved_driver_posts_ride_that_shows_in_search(app, client):
     assert {"origin": "Rusizi", "destination": "Rubavu"}.items() <= routes[0].items()
 
 
-def test_ride_seats_cannot_exceed_vehicle(app, client):
+def test_ride_seats_cannot_exceed_vehicle(app, client, add_car):
     response = register(client, role="driver")
     driver = auth_header(response)
     with app.app_context():
         db.session.query(Driver).update({"is_approved": True})
         db.session.commit()
-    vehicle = client.post(
-        "/api/drivers/vehicles",
-        json={"plate_number": "RAC 456 B", "model": "Car", "seats": 4},
-        headers=driver,
-    ).get_json()["vehicle"]
+    vehicle = add_car(driver, "RAC 456 B", seats=4)
 
     response = client.post(
         "/api/rides",

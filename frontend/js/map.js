@@ -42,7 +42,7 @@ const RwandaMap = (() => {
   const KIGALI_PARTS = ["Nyarugenge", "Gasabo", "Kicukiro"];
   const placeOf = (district) => (KIGALI_PARTS.includes(district) ? "Kigali" : district);
 
-  const DATA_URL = "assets/rwanda-districts.geojson";
+  const DATA_URL = "/assets/rwanda-districts.geojson";
   const ROUTER = "https://router.project-osrm.org/route/v1/driving/";
   const SVG_NS = "http://www.w3.org/2000/svg";
   const WIDTH = 600;
@@ -150,11 +150,7 @@ const RwandaMap = (() => {
       kigali.textContent = "Kigali";
       labels.append(kigali);
 
-      const [lx, ly] = project(29.08, -2.1);
-      const lake = svgEl("text", { x: lx, y: ly, class: "rmap-water" });
-      lake.textContent = "Lake Kivu";
-
-      svg.append(outline, districts, lake, routeLayer, labels, endLayer);
+      svg.append(outline, districts, routeLayer, labels, endLayer);
       stage.append(svg);
 
       tagLayer = document.createElement("div");
@@ -267,14 +263,19 @@ const RwandaMap = (() => {
       let result;
       try {
         const url = `${ROUTER}${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`;
-        const res = await fetch(url, { signal: pending.signal });
+        // On slow mobile data the public router can hang: give up after
+        // 8 seconds and draw a straight line instead of waiting forever.
+        const controller = pending;
+        const timer = setTimeout(() => { controller.timedOut = true; controller.abort(); }, 8000);
+        const res = await fetch(url, { signal: pending.signal }).finally(() => clearTimeout(timer));
         const data = await res.json();
         const route = data.routes && data.routes[0];
         if (!route) throw new Error("No route");
         drawLine(route.geometry.coordinates.map(([lon, lat]) => project(lon, lat)), false);
         result = { km: route.distance / 1000, minutes: route.duration / 60 };
       } catch (err) {
-        if (err.name === "AbortError") return null;
+        // Aborted because the user picked another trip: nothing to draw.
+        if (err.name === "AbortError" && !pending.timedOut) return null;
         // Router unreachable: a straight dashed line instead.
         drawLine([pa, pb], true);
         result = { offline: true };
@@ -288,8 +289,46 @@ const RwandaMap = (() => {
       return result;
     }
 
-    return { showTrip };
+    // Draw a recorded trip: the positions the driver's phone sent, in order
+    // ([{lat, lng}]), with a dot where it started and a square where it
+    // ended (or a dot for the car's last position while it is still going).
+    async function showTrack(points, { live = false } = {}) {
+      await ready;
+      if (!project) return;
+      pending?.abort();
+      routeLayer.replaceChildren();
+      endLayer.replaceChildren();
+      tagLayer.replaceChildren();
+      mark(null, null);
+      if (!points.length) return;
+      const xy = points.map((p) => project(p.lng, p.lat));
+      if (xy.length > 1) drawLine(xy, false);
+      const [sx, sy] = xy[0];
+      const [ex, ey] = xy[xy.length - 1];
+      endLayer.append(svgEl("circle", { cx: sx, cy: sy, r: 6, class: "rmap-start" }));
+      tag(`Start, near ${nearest(points[0].lat, points[0].lng)}`, xy[0], "from");
+      if (xy.length > 1 || !live) {
+        endLayer.append(live
+          ? svgEl("circle", { cx: ex, cy: ey, r: 8, class: "rmap-car" })
+          : svgEl("rect", { x: ex - 6, y: ey - 6, width: 12, height: 12, rx: 1.5, class: "rmap-end" }));
+        const last = points[points.length - 1];
+        tag(`${live ? "Now" : "End"}, near ${nearest(last.lat, last.lng)}`, xy[xy.length - 1], "to");
+      }
+    }
+
+    return { showTrip, showTrack };
   }
 
-  return { render, names: Object.keys(TOWNS) };
+  // The district town closest to a position, to say where a trip was.
+  function nearest(lat, lng) {
+    let best = null;
+    let bestD = Infinity;
+    Object.entries(TOWNS).forEach(([name, [tLat, tLng]]) => {
+      const d = (tLat - lat) ** 2 + ((tLng - lng) * Math.cos((lat * Math.PI) / 180)) ** 2;
+      if (d < bestD) { bestD = d; best = name; }
+    });
+    return best;
+  }
+
+  return { render, nearest, names: Object.keys(TOWNS) };
 })();
