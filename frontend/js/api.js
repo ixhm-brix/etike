@@ -16,7 +16,7 @@ const api = (() => {
     }
   }
 
-  async function request(path, { method = "GET", body, form, timeoutMs = 8000 } = {}) {
+  async function request(path, { method = "GET", body, form, timeoutMs = 8000, raw = false } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -40,6 +40,9 @@ const api = (() => {
     } finally {
       clearTimeout(timer);
     }
+
+    // A file (raw): hand back its contents; errors are still JSON.
+    if (raw && response.ok) return response.blob();
 
     // Error responses from our API are JSON too, so parse before checking ok.
     let data = null;
@@ -77,11 +80,16 @@ const api = (() => {
     get: (path) => request(path),
     // options: { timeoutMs } for slow requests such as starting a payment.
     post: (path, body, options) => request(path, { method: "POST", body: body || {}, ...options }),
+    put: (path, body) => request(path, { method: "PUT", body: body || {} }),
     del: (path) => request(path, { method: "DELETE" }),
-    upload: (path, field, file) => {
+    // extra: more form fields sent with the file, e.g. { expires_on: "2027-01-31" }.
+    upload: (path, field, file, extra = {}) => {
       const form = new FormData();
       form.append(field, file);
+      Object.entries(extra).forEach(([k, v]) => form.append(k, v));
       return request(path, { method: "POST", form, timeoutMs: 30000 });
     },
+    // A private file that needs the login token (driver documents): a Blob.
+    file: (path) => request(path, { raw: true, timeoutMs: 30000 }),
   };
 })();

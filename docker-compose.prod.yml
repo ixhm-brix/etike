@@ -50,6 +50,9 @@ services:
       # Car photos drivers upload; Nginx serves the same volume. Back it up
       # with the database (see docs/deployment.md).
       - uploads:/uploads
+      # Drivers' legal documents: personal data. Only the API mounts this
+      # volume; Nginx never serves it.
+      - documents:/documents
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5)"]
       interval: 30s
@@ -87,3 +90,4 @@ services:
 volumes:
   db_data:
   uploads:
+  documents:

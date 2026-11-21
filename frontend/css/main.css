@@ -1235,6 +1235,85 @@ a {
   outline-offset: 2px;
 }
 
+/* Driver documents (driver page and admin Drivers page) */
+.block-note {
+  color: var(--gray-700);
+  max-width: 60ch;
+}
+.doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.doc {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius);
+  background: var(--gray-50);
+}
+.doc-name {
+  font-weight: 600;
+}
+.doc-state {
+  font-size: 0.875rem;
+  color: var(--gray-700);
+}
+.result-meta.is-bad,
+.doc-state.is-bad {
+  color: var(--bad);
+}
+.doc-actions {
+  margin-top: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.doc-date {
+  font-size: 0.875rem;
+  color: var(--gray-700);
+}
+.doc-actions input[type="date"] {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  background: var(--white);
+}
+.reject-reason {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  min-width: 0;
+  width: 14rem;
+  max-width: 100%;
+}
+/* Admin view: two columns of short rows, View on the right. */
+.doc-list-compact {
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+}
+.doc-list-compact .doc {
+  grid-template-columns: 1fr auto;
+  column-gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--white);
+}
+.doc-list-compact .doc-name,
+.doc-list-compact .doc-state {
+  grid-column: 1;
+}
+.doc-list-compact .doc-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-top: 0;
+}
+
 /* Ticket */
 .ticket-card {
   margin-top: 1.5rem;

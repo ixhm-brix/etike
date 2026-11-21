@@ -29,7 +29,7 @@ def test_unsafe_settings_refuse_to_start(change, message):
 
 
 def test_large_request_is_refused(client):
-    response = client.post("/api/auth/login", data=b"x" * (5 * 1024 * 1024),
+    response = client.post("/api/auth/login", data=b"x" * (7 * 1024 * 1024),
                            content_type="application/json")
 
     assert response.status_code == 413

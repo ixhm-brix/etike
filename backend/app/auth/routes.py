@@ -47,16 +47,11 @@ def register():
         msg = f"Must be {MIN_PASSWORD} to {MAX_PASSWORD} characters."
         raise bad_request(f"password: {msg}", {"password": msg})
 
-    license_number = None
-    if role == "driver":
-        license_number = v.text(data, "license_number", min_len=5, max_len=30).upper()
-
+    # Drivers sign up like everyone else. Once logged in, they fill in their
+    # official details and upload their documents on the driver page, and an
+    # admin approves them (see routes/drivers.py).
     if db.session.query(User.user_id).filter_by(phone=phone).first():
         raise conflict("An account with this phone number already exists.", "phone_taken")
-    if license_number and db.session.query(Driver.driver_id).filter_by(
-        license_number=license_number
-    ).first():
-        raise conflict("This licence number is already registered.", "license_taken")
 
     user = User(
         full_name=full_name,
@@ -65,15 +60,15 @@ def register():
         password_hash=generate_password_hash(password),
         role=role,
     )
-    if license_number:
-        user.driver = Driver(license_number=license_number)
+    if role == "driver":
+        user.driver = Driver()
     db.session.add(user)
     try:
         db.session.commit()
     except IntegrityError:
-        # Someone registered the same phone or licence a moment ago.
+        # Someone registered the same phone a moment ago.
         db.session.rollback()
-        raise conflict("This phone number or licence is already registered.") from None
+        raise conflict("An account with this phone number already exists.", "phone_taken") from None
 
     return jsonify({"user": user.to_dict(), "access_token": _token_for(user)}), 201
 

@@ -13,7 +13,8 @@ Tick every line before sharing the link. Each one points to the step below that 
 - [ ] GitHub secrets set; a push to `main` deploys (step 7)
 - [ ] Cron: `expire-bookings` every minute and the nightly backup (steps 8 and 9)
 - [ ] One backup restored into a scratch database (step 9)
-- [ ] Real districts and routes loaded, real drivers added and approved (step 10)
+- [ ] Real districts and routes loaded; drivers' documents checked and drivers approved (step 10)
+- [ ] The required documents list in `backend/app/driver_documents.py` confirmed with RURA (step 10)
 - [ ] Logged in as a passenger on a phone: searched, booked a ride, cancelled it (step 10)
 - [ ] The live link is in the main README
 
@@ -200,10 +201,15 @@ crontab -e
 30 2 * * * /home/deploy/etike/infra/backups/backup-db.sh >> /home/deploy/backups/backup.log 2>&1
 ```
 
-The script backs up the database. Car photos are in the `uploads` Docker volume; back it up too, for example weekly:
+The script backs up the database. Files live in two Docker volumes; back them up too, for example weekly:
+
+- `uploads`: car photos;
+- `documents`: drivers' legal documents (ID, licence, RURA, insurance…), personal data.
 
 ```bash
 docker run --rm -v etike_uploads:/data -v ~/backups:/backup alpine tar czf /backup/uploads-$(date +%F).tar.gz -C /data .
+docker run --rm -v etike_documents:/data -v ~/backups:/backup alpine tar czf /backup/documents-$(date +%F).tar.gz -C /data .
+chmod 600 ~/backups/documents-*.tar.gz
 ```
 
 (The volume is named after the project folder; check with `docker volume ls`.)
@@ -240,7 +246,9 @@ docker compose -f docker-compose.prod.yml run --rm -v "$PWD/data:/data" api pyth
 docker compose -f docker-compose.prod.yml run --rm -v "$PWD/data:/data" api python /data/scripts/add_drivers.py /data/raw/drivers.csv
 ```
 
-Approve each driver on the admin Drivers page after checking their licence. Never run `local_test_data.py` on the server: it is fake data for laptops only, and it is not in Git or in the server image.
+Each driver logs in, fills in their details (national ID number, date of birth, gender, home, licence number) and uploads their six documents on the driver page (national ID, driving licence, RURA authorisation, vehicle registration card, insurance, inspection certificate). On the admin Drivers page, open each one and check it against the details the driver typed in and their car plate; **Approve** only unlocks when all six are uploaded and in date. Reject with a reason if something is wrong: the driver sees it and can upload a corrected document.
+
+The list of required documents is in `backend/app/driver_documents.py`. It follows RURA's rule that carrying paying passengers needs its authorisation, but confirm the exact list with RURA before going live. Never run `local_test_data.py` on the server: it is fake data for laptops only, and it is not in Git or in the server image.
 
 Then, on a phone: sign up as a passenger, search a real route, book a ride, cancel it.
 
@@ -254,3 +262,4 @@ Then, on a phone: sign up as a passenger, search a real route, book a ride, canc
 - [ ] HTTPS is on and SSL Labs gives an A.
 - [ ] The admin password is long and stored in a password manager; `ADMIN_*` values are removed from `.env` after `create-admin`.
 - [ ] Backups run nightly and a restore has been tested.
+- [ ] Driver documents are only in the `documents` volume (never in Git or `/uploads`), and their backups are `chmod 600`.

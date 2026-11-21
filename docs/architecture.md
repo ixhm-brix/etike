@@ -39,15 +39,15 @@ No tables or data are removed; the booking service stays generic and still suppo
 
 | Module | Where | What it does |
 |--------|-------|--------------|
-| Models | `app/models/` | `users`, `drivers`, `vehicles`, `vehicle_photos`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, `booking_seats`, `payments`, `ratings`, `login_codes`, with CHECK constraints for allowed values, seat counts and scores |
+| Models | `app/models/` | `users`, `drivers`, `driver_documents`, `vehicles`, `vehicle_photos`, `bus_companies`, `routes`, `bus_trips`, `ride_offers`, `bookings`, `booking_seats`, `payments`, `ratings`, `login_codes`, with CHECK constraints for allowed values, seat counts and scores |
 | Auth | `app/auth/` | Sign up (passenger or driver) and log in with phone number and password; `/me`. One-click test-account login only when `DEMO_LOGIN` is on (never in production). SMS-code login exists in the API but is not on the website. JWT tokens valid 12 hours (Flask-JWT-Extended), Werkzeug password hashes, login codes stored as keyed hashes, and the `role_required` decorator |
 | Search | `app/routes/search.py` | Places, routes, ride offers, and (future phase) bus trips. Public. Also `GET /api/config` |
-| Drivers | `app/routes/drivers.py` | Vehicles, and posting rides (approved drivers only) |
+| Drivers | `app/routes/drivers.py`, `app/driver_documents.py` | Legal documents (upload, replace, download your own), vehicles, and posting rides (approved drivers only) |
 | Bookings | `app/routes/bookings.py`, `app/services/booking_service.py` | Book (pending, seats held), confirm, cancel and release expired holds, without double booking |
 | Payments *(future phase, behind FEATURE_BUS_BOOKING)* | `app/routes/payments.py`, `app/services/payment_service.py`, `app/services/momo_client.py` | MTN MoMo request to pay: start, check status, callback |
 | SMS | `app/services/sms_service.py` | Booking confirmations through Africa's Talking; failures are logged, never raised |
 | Ratings | `app/routes/ratings.py` | Passengers rate drivers after a ride; keeps `drivers.avg_rating` up to date |
-| Admin | `app/routes/admin.py` | Approve or reject drivers; *future phase:* verify bus companies, refunds for paid tickets (admin role only) |
+| Admin | `app/routes/admin.py` | Check drivers' documents, approve (only with every document uploaded and in date) or reject with a reason; *future phase:* verify bus companies, refunds for paid tickets (admin role only) |
 | Validation and errors | `app/validation.py`, `app/errors.py` | Input checks and one JSON error format |
 | Places | `app/places.py` | The 28 places people travel between (Kigali's three districts count as one) and old town names such as Butare for Huye |
 | Commands | `app/cli.py` | `flask create-admin`, `flask approve-driver`, `flask expire-bookings`, `flask momo-create-user` (sandbox) |
@@ -156,7 +156,9 @@ Seat maps and QR tickets were built for buses and are part of the future phase; 
 
 - **Seats.** `booking_seats` holds one row per seat per active booking, with `UNIQUE(trip_id, seat_number)` and `UNIQUE(offer_id, seat_number)`. Seats are chosen and checked while the trip or ride row is locked, and the unique constraints are a second guard. Cancelling or expiring deletes the rows (the booking keeps `seat_numbers` as a record). Seat maps are drawn from the seat count (`app/services/seat_service.py`).
 - **Tickets.** The QR code (made with `segno`) holds a link to `/verify.html` with a token signed with `SECRET_KEY` (itsdangerous). The check is public and live, and shows only what boarding staff need.
-- **Photos.** Uploaded to `UPLOAD_DIR` (the `uploads` volume) under random names, after checking the file's first bytes are a JPEG, PNG or WebP. Nginx serves them at `/uploads/` with `Content-Security-Policy: default-src 'none'`, and allows 4 MB only on the upload address.
+- **Driver details.** Sign-up is the same for everyone. Afterwards, a driver fills in their details on the driver page (`PUT /api/drivers/details`): national ID number (16 digits, unique), date of birth (18 or older), gender, home district and sector, driving licence number (unique). They are columns on `drivers`, returned only by `Driver.details_dict()` to the driver and admins (never in `to_dict`, which the browser keeps after login, and never to passengers), and locked once approved.
+- **Driver documents.** Carrying paying passengers in Rwanda needs RURA authorisation, so approval needs the details above and six documents (list in `app/driver_documents.py`): national ID, driving licence, RURA authorisation, vehicle registration, insurance and inspection, with expiry dates where they expire. Files are checked by their first bytes (JPEG, PNG or PDF, under 5 MB) and saved under random names in `DOCUMENT_DIR`, the `documents` volume. Only the API mounts it; Nginx never serves it. The driver and admins download them through the API with their login token (`Cache-Control: no-store`). One file per type: a new upload replaces the old one and deletes its file.
+- **Photos.** Uploaded to `UPLOAD_DIR` (the `uploads` volume) under random names, after checking the file's first bytes are a JPEG, PNG or WebP. Nginx serves them at `/uploads/` with `Content-Security-Policy: default-src 'none'`, and allows 6 MB only on the photo and document upload addresses.
 
 ## Environments
 
@@ -168,7 +170,7 @@ Seat maps and QR tickets were built for buses and are part of the future phase; 
 - Every secret comes from environment variables (the server's `.env`, never in Git). With `FLASK_ENV=production`, `create_app` refuses to start if `DATABASE_URL`, `SECRET_KEY` or `JWT_SECRET_KEY` is missing, if a secret is `change-me` or under 32 characters, if both secrets are the same, or if `DEMO_LOGIN` is on. Debug is always off.
 - Flask trusts Nginx's `X-Forwarded-Proto` and `X-Forwarded-Host` (Werkzeug `ProxyFix`, production only), so links it builds, such as ticket QR codes, use `https://` and the real domain.
 - CORS is off unless `CORS_ORIGINS` lists sites: the pages and API share one domain.
-- Limits: Nginx allows 64 KB per request (4 MB on the photo upload address) and 10 requests a minute per IP address on `/api/auth/`; Flask refuses requests over 4 MB itself as well (413).
+- Limits: Nginx allows 64 KB per request (6 MB on the photo and document upload addresses) and 10 requests a minute per IP address on `/api/auth/`; Flask refuses requests over 6 MB itself as well (413).
 - Every endpoint checks its input in `app/validation.py` and answers 400 naming the field. Admin endpoints need the admin role; bookings, payments and tickets are only shown to their owner.
 - Nginx sends a Content Security Policy, no-framing, no-sniffing and referrer headers; the HTTPS config adds HSTS.
 

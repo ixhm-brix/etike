@@ -11,15 +11,125 @@
   const f = rideForm.elements;
   let vehicles = [];
 
+  const docList = document.getElementById("documents");
+  const docMsg = document.getElementById("documents-msg");
+  const detailsForm = document.getElementById("details");
+  const detailsMsg = document.getElementById("details-msg");
+  const DETAIL_FIELDS = ["national_id_number", "date_of_birth", "gender", "home_district",
+    "home_sector", "license_number"];
+
   // Approval status comes from the server, not from what was saved at login.
   try {
-    const { user } = await api.get("/auth/me");
-    status.textContent = user.driver.is_approved
-      ? "Your driver account is approved. Rides you post show up in search."
-      : "Your driver account is waiting for approval. You can add your vehicle now, and post rides once we have checked your licence.";
-    rideForm.querySelector("button").disabled = !user.driver.is_approved;
+    await ui.fillPlaces(detailsForm.elements.home_district, "Choose");
+    showDocuments(await api.get("/drivers/documents"));
   } catch (err) {
-    ui.say(rideMsg, err.message);
+    ui.say(docMsg, err.message);
+  }
+
+  // Personal details: editable until the account is approved.
+  function showDetails(details, approved) {
+    DETAIL_FIELDS.forEach((name) => {
+      detailsForm.elements[name].value = details[name] || "";
+      detailsForm.elements[name].disabled = approved;
+    });
+    detailsForm.querySelector("button").hidden = approved;
+    if (approved) {
+      document.getElementById("details-note").textContent =
+        "Checked and approved. To change them, contact ETIKE.";
+    }
+  }
+
+  detailsForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    ui.clearErrors(detailsForm);
+    const body = {};
+    DETAIL_FIELDS.forEach((name) => { body[name] = detailsForm.elements[name].value; });
+    try {
+      showDocuments(await ui.busy(detailsForm.querySelector("button"), "Saving…", () =>
+        api.put("/drivers/details", body)));
+      ui.say(detailsMsg, "Details saved.", "info");
+    } catch (err) {
+      ui.formError(detailsForm, detailsMsg, err);
+    }
+  });
+
+  function showDocuments({ documents, details, driver }) {
+    showDetails(details, driver.status === "approved");
+    const missing = documents.filter((d) => !d.uploaded || d.expired).length;
+    const noDetails = DETAIL_FIELDS.some((name) => !details[name]);
+    if (driver.status === "approved") {
+      status.textContent = "Your driver account is approved. Rides you post show up in search.";
+    } else if (driver.status === "rejected") {
+      status.textContent = `We could not approve your account${driver.rejection_reason ? `: ${driver.rejection_reason}` : "."} Upload a corrected document below and we will check again.`;
+    } else if (noDetails) {
+      status.textContent = "Fill in your details below, then upload your documents. You can add your vehicle meanwhile.";
+    } else if (missing) {
+      status.textContent = `Your account is waiting for your documents: ${missing} of ${documents.length} still to upload. You can add your vehicle meanwhile.`;
+    } else {
+      status.textContent = "Thanks, all your documents are in. We are checking them; you can post rides once your account is approved.";
+    }
+    rideForm.querySelector("button").disabled = driver.status !== "approved";
+    docList.replaceChildren(...documents.map(documentRow));
+  }
+
+  function documentRow(d) {
+    const li = ui.el("li", "doc");
+    li.append(ui.el("span", "doc-name", d.label));
+    let state = "Not uploaded yet";
+    if (d.uploaded) {
+      state = `Uploaded ${ui.date(d.uploaded_at)}`;
+      if (d.expires_on) state += `, valid until ${ui.date(d.expires_on)}`;
+      if (d.expired) state = `Expired on ${ui.date(d.expires_on)}. Upload the new one.`;
+    }
+    li.append(ui.el("span", `doc-state${!d.uploaded || d.expired ? " is-bad" : ""}`, state));
+
+    const actions = ui.el("div", "doc-actions");
+    if (d.uploaded) {
+      const view = ui.el("button", "btn-gray btn-sm", "View");
+      view.type = "button";
+      view.addEventListener("click", () => ui.openFile(`/drivers/documents/${d.type}/file`, view, docMsg));
+      actions.append(view);
+    }
+    let expiry = null;
+    if (d.needs_expiry) {
+      expiry = ui.el("input");
+      expiry.type = "date";
+      expiry.min = new Date().toISOString().slice(0, 10);
+      if (d.expires_on && !d.expired) expiry.value = d.expires_on;
+      const dateLabel = ui.el("label", "doc-date", "Valid until ");
+      dateLabel.append(expiry);
+      actions.append(dateLabel);
+    }
+    const label = ui.el("label", "btn-black btn-sm file-label", d.uploaded ? "Replace" : "Upload");
+    const input = ui.el("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,application/pdf";
+    input.setAttribute("aria-label", `Upload ${d.label}`);
+    input.addEventListener("change", async () => {
+      const file = input.files[0];
+      if (!file) return;
+      if (expiry && !expiry.value) {
+        ui.say(docMsg, `Enter the date your ${d.label.split(" (")[0].toLowerCase()} is valid until, then choose the file again.`);
+        input.value = "";
+        expiry.focus();
+        return;
+      }
+      ui.say(docMsg, "");
+      label.firstChild.textContent = "Uploading…";
+      try {
+        const extra = expiry ? { expires_on: expiry.value } : {};
+        showDocuments(await api.upload(`/drivers/documents/${d.type}`, "document", file, extra));
+        ui.say(docMsg, `${d.label.split(" (")[0]} uploaded.`, "info");
+      } catch (err) {
+        ui.say(docMsg, err.message);
+        label.firstChild.textContent = d.uploaded ? "Replace" : "Upload";
+        input.value = "";
+      }
+    });
+    label.append(input);
+    actions.append(label);
+    li.append(actions);
+    return li;
   }
 
   await Promise.all([

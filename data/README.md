@@ -73,12 +73,16 @@ Drivers normally sign up on the website. To add drivers the team has met (with t
 | `plate_number` | `RAD 123 B` |
 | `model` | `Toyota RAV4` |
 | `seats` | passenger seats, driver not counted (1 to 30) |
+| `national_id_number` | 16 digits, as on their ID |
+| `date_of_birth` | `1988-04-21` (18 or older) |
+| `gender` | `female` or `male` |
+| `home_district`, `home_sector` | where they live, e.g. `Musanze`, `Muhoza` |
 
 ```bash
 docker compose exec api python /data/scripts/add_drivers.py /data/raw/drivers.csv
 ```
 
-Each driver starts **not approved**: an admin approves them on the Drivers page after checking the licence. The script prints a temporary password for each driver, once; give it to the driver privately. Rows that fail a check or are already registered are skipped with a message.
+Each driver starts **not approved**. They log in with the temporary password, check their details and upload their six documents (national ID, driving licence, RURA authorisation, vehicle registration card, insurance, inspection certificate) on the driver page; an admin approves them once all are uploaded and checked. Documents are never put in this folder or in Git. The script prints a temporary password for each driver, once; give it to the driver privately. Rows that fail a check or are already registered are skipped with a message.
 
 ## Consent
 

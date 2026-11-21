@@ -48,6 +48,9 @@ services:
       - ./data:/data
       # Car photos drivers upload; Nginx serves the same volume.
       - uploads:/uploads
+      # Drivers' legal documents: personal data. Only the API mounts this
+      # volume; Nginx never serves it.
+      - documents:/documents
     depends_on:
       db:
         condition: service_healthy
@@ -66,3 +69,4 @@ services:
 volumes:
   db_data:
   uploads:
+  documents:

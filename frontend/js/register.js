@@ -1,16 +1,14 @@
-// Create a passenger or driver account. Drivers also give their licence
-// number; an admin approves it before they can post rides.
+// Create a passenger or driver account: name, phone and password only.
+// Drivers then fill in their official details and upload their documents
+// on the driver page, and an admin approves them.
 (function register() {
   const form = document.getElementById("register");
   const msg = document.getElementById("msg");
   const button = form.querySelector("button");
-  const licence = document.getElementById("licence-field");
-  const licenceHint = document.getElementById("licence-hint");
+  const driverHint = document.getElementById("driver-hint");
 
   function sync() {
-    const isDriver = form.elements.role.value === "driver";
-    licence.hidden = !isDriver;
-    licenceHint.hidden = !isDriver;
+    driverHint.hidden = form.elements.role.value !== "driver";
   }
   if (new URLSearchParams(location.search).get("role") === "driver") form.elements.role.value = "driver";
   form.addEventListener("change", sync);
@@ -27,7 +25,6 @@
       email: f.email.value || undefined,
       password: f.password.value,
     };
-    if (body.role === "driver") body.license_number = f.license_number.value;
     try {
       const data = await ui.busy(button, "Creating account…", () => api.post("/auth/register", body));
       auth.save(data);
