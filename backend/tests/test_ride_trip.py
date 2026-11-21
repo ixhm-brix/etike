@@ -137,3 +137,72 @@ def test_started_ride_cannot_be_cancelled(app, client, ride, passenger):
 
     assert response.status_code == 409
     assert response.get_json()["error"]["code"] == "ride_started"
+
+
+# ---- Where the ride went (the driver's phone location) ----
+
+KIGALI = {"lat": -1.9441, "lng": 30.0619, "accuracy": 12}
+MUHANGA = {"lat": -2.085, "lng": 29.756, "accuracy": 20}
+HUYE = {"lat": -2.5967, "lng": 29.7394, "accuracy": 15}
+
+
+def test_trip_is_recorded_from_start_to_end(client, ride, passenger, make_admin, monkeypatch):
+    from app.services import ride_service
+
+    monkeypatch.setattr(ride_service, "MIN_GAP", timedelta(0))
+    driver, offer_id = ride()
+    book(client, passenger, offer_id)
+
+    client.post(f"/api/rides/{offer_id}/start", json=KIGALI, headers=driver)
+    sent = client.post(f"/api/rides/{offer_id}/locations", json=MUHANGA, headers=driver)
+    client.post(f"/api/rides/{offer_id}/end", json=HUYE, headers=driver)
+    viewers = {"driver": driver, "passenger": passenger, "admin": make_admin()}
+    seen_by = {who: client.get(f"/api/rides/{offer_id}/track", headers=h)
+               for who, h in viewers.items()}
+
+    assert sent.status_code == 201
+    record = seen_by["driver"].get_json()
+    assert [p["kind"] for p in record["points"]] == ["start", "track", "end"]
+    assert record["points"][0]["lat"] == KIGALI["lat"]
+    assert 70 < record["distance_km"] < 120  # Kigali, Muhanga, Huye as the crow flies
+    assert record["started_at"] and record["ended_at"]
+    assert seen_by["passenger"].status_code == seen_by["admin"].status_code == 200
+
+
+def test_positions_are_spaced_out(client, ride, passenger):
+    driver, offer_id = ride()
+    book(client, passenger, offer_id)
+    client.post(f"/api/rides/{offer_id}/start", json=KIGALI, headers=driver)
+
+    # Right after the start point: too soon, skipped (the phone sends ~every 30 s).
+    too_soon = client.post(f"/api/rides/{offer_id}/locations", json=MUHANGA, headers=driver)
+
+    assert too_soon.status_code == 200 and too_soon.get_json()["saved"] is False
+
+
+def test_location_rules(client, ride, passenger):
+    driver, offer_id = ride()
+    book(client, passenger, offer_id)
+
+    before_start = client.post(f"/api/rides/{offer_id}/locations", json=KIGALI, headers=driver)
+    abroad = client.post(f"/api/rides/{offer_id}/start", headers=driver,
+                         json={"lat": 48.85, "lng": 2.35})  # Paris
+    vague = client.post(f"/api/rides/{offer_id}/start", headers=driver,
+                        json={**KIGALI, "accuracy": 5000})
+    no_location = client.post(f"/api/rides/{offer_id}/start", headers=driver)
+
+    assert before_start.get_json()["error"]["code"] == "ride_not_on"
+    assert abroad.status_code == 400 and vague.status_code == 400
+    # Location is optional: a driver who doesn't share it can still drive.
+    assert no_location.status_code == 200
+
+
+def test_only_people_on_the_ride_see_where_it_went(client, ride, passenger):
+    driver, offer_id = ride()
+    book(client, passenger, offer_id)
+    other_passenger = auth_header(register(client))
+    other_driver, _ = ride()
+
+    assert client.get(f"/api/rides/{offer_id}/track", headers=other_passenger).status_code == 404
+    assert client.get(f"/api/rides/{offer_id}/track", headers=other_driver).status_code == 404
+    assert client.get(f"/api/rides/{offer_id}/track").status_code == 401

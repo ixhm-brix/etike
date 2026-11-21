@@ -5,6 +5,7 @@ daylight saving), which is how timetables are written.
 """
 
 from ..extensions import db
+from .user import utcnow
 
 RIDE_TYPES = ("shared", "private")
 OFFER_STATUSES = ("open", "full", "cancelled")
@@ -139,3 +140,29 @@ class RideOffer(db.Model):
                 "photos": [p.to_dict() for p in self.vehicle.photos],
             },
         }
+
+
+class RideLocation(db.Model):
+    """Where the driver's phone was during a ride: at Start ride ("start"),
+    every half minute or so while it was on ("track"), and at End ride
+    ("end"). Recorded only with the driver's permission, so a ride can have
+    none. Personal data: only the driver, the ride's passengers and admins
+    can see it."""
+
+    __tablename__ = "ride_locations"
+    __table_args__ = (
+        db.CheckConstraint("kind IN ('start', 'track', 'end')", name="kind"),
+    )
+
+    location_id = db.Column(db.Integer, primary_key=True)
+    offer_id = db.Column(db.Integer, db.ForeignKey("ride_offers.offer_id"), nullable=False,
+                         index=True)
+    kind = db.Column(db.String(5), nullable=False)
+    lat = db.Column(db.Float, nullable=False)
+    lng = db.Column(db.Float, nullable=False)
+    accuracy_m = db.Column(db.Integer)  # how sure the phone was, in metres
+    recorded_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    def to_dict(self):
+        return {"kind": self.kind, "lat": self.lat, "lng": self.lng,
+                "accuracy_m": self.accuracy_m, "at": self.recorded_at.isoformat()}

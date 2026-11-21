@@ -1,13 +1,22 @@
 // The driver's trips, like a taxi app: Start ride when setting off, End ride
 // on arrival; then each passenger pays with MTN MoMo and the payment shows
 // up here (with a banner) while the page is open.
+//
+// With the driver's permission, the phone's location is recorded: where the
+// ride started and ended, and every 30 seconds or so while it is on (the
+// screen is kept awake for that). A web page can't track in the background,
+// so this works while this page is open.
 (async function driverTrips() {
   if (!auth.user() || auth.user().role !== "driver") return;
   const block = document.getElementById("trips-block");
   const list = document.getElementById("trips");
   const msg = document.getElementById("trips-msg");
   const DAY = 24 * 3600 * 1000;
+  const SEND_EVERY = 30000; // ms between positions sent during a ride
   let rides = [];
+  // Location sharing: "waiting" (not asked yet), "on" or "off" (refused or
+  // unavailable), and when the last position was sent.
+  let geo = { state: "waiting", lastSent: 0, watch: null, wakeLock: null };
 
   await load();
   setInterval(() => { if (!document.hidden && needsWatching()) load(true); }, 10000);
@@ -18,6 +27,7 @@
       if (quietly) announcePayments(rides, fresh);
       rides = fresh;
       render();
+      syncTracking();
     } catch (err) {
       if (!quietly) {
         block.hidden = false;
@@ -86,6 +96,12 @@
           ? `All paid: ${ui.money(r.paid)}`
           : `Received ${ui.money(r.paid)} of ${ui.money(r.to_collect)}`));
     }
+    if (r.progress === "in_progress") li.append(liveLine());
+    if (r.progress !== "scheduled") {
+      const see = ui.el("a", "trip-map-link", r.progress === "ended" ? "See the trip on the map" : "Follow the trip on the map");
+      see.href = `/trip.html?ride=${r.offer_id}`;
+      li.append(see);
+    }
     if (r.progress === "scheduled") {
       // The server allows starting from one hour before departure.
       const from = new Date(new Date(r.departure_time).getTime() - 3600 * 1000);
@@ -104,17 +120,105 @@
     b.type = "button";
     b.addEventListener("click", async () => {
       try {
-        const { ride } = await ui.busy(b, what === "start" ? "Starting…" : "Ending…",
-          () => api.post(`/rides/${r.offer_id}/${what}`));
+        const { ride } = await ui.busy(b, what === "start" ? "Starting…" : "Ending…", async () => {
+          // Where the car is now, if the driver allows it (the ride works without).
+          const here = await position();
+          return api.post(`/rides/${r.offer_id}/${what}`, here || {});
+        });
         rides = rides.map((x) => (x.offer_id === ride.offer_id ? ride : x));
         render();
-        if (what === "start") ui.toast("Ride started", "Have a safe trip. Tap End ride when you arrive.");
-        else ui.toast("Ride ended", `Your passengers can now pay ${ui.money(ride.to_collect)} with MTN MoMo.`);
+        syncTracking();
+        if (what === "start") {
+          ui.toast("Ride started", geo.state === "off"
+            ? "Location is off, so this trip isn't recorded on the map. Tap End ride when you arrive."
+            : "Have a safe trip. Keep this page open so the trip is recorded. Tap End ride when you arrive.");
+        } else {
+          ui.toast("Ride ended", `Your passengers can now pay ${ui.money(ride.to_collect)} with MTN MoMo.`);
+        }
       } catch (err) {
         ui.say(msg, err.message);
       }
     });
     return b;
+  }
+
+  // ---- Location ----
+
+  // One position now: {lat, lng, accuracy}, or null if it isn't shared.
+  function position() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) { geo.state = "off"; resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (p) => { geo.state = "on"; resolve(toBody(p)); },
+        () => { geo.state = "off"; resolve(null); },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+      );
+    });
+  }
+
+  function toBody(p) {
+    return { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) };
+  }
+
+  // While a ride is on: follow the phone's position and send it every
+  // SEND_EVERY ms, and keep the screen awake. Stop when no ride is on.
+  function syncTracking() {
+    const on = rides.filter((r) => r.progress === "in_progress");
+    if (!on.length || !navigator.geolocation) {
+      if (geo.watch !== null) navigator.geolocation.clearWatch(geo.watch);
+      geo.watch = null;
+      geo.wakeLock?.release().catch(() => {});
+      geo.wakeLock = null;
+      return;
+    }
+    keepAwake();
+    if (geo.watch !== null) return;
+    geo.watch = navigator.geolocation.watchPosition(async (p) => {
+      geo.state = "on";
+      if (Date.now() - geo.lastSent < SEND_EVERY) return;
+      geo.lastSent = Date.now();
+      const body = toBody(p);
+      await Promise.all(rides.filter((r) => r.progress === "in_progress").map((r) =>
+        api.post(`/rides/${r.offer_id}/locations`, body).catch(() => null)));
+      updateLiveLines();
+    }, () => {
+      geo.state = "off";
+      updateLiveLines();
+    }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 60000 });
+  }
+
+  async function keepAwake() {
+    if (geo.wakeLock || !navigator.wakeLock || document.hidden) return;
+    try {
+      geo.wakeLock = await navigator.wakeLock.request("screen");
+      geo.wakeLock.addEventListener("release", () => { geo.wakeLock = null; });
+    } catch (err) {
+      // Not allowed (e.g. battery saver): tracking still works while the screen is on.
+    }
+  }
+  // The screen lock is dropped when the page is hidden; take it back.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && rides.some((r) => r.progress === "in_progress")) keepAwake();
+  });
+
+  function liveLine() {
+    const p = ui.el("p", "trip-live");
+    p.dataset.live = "1";
+    fillLive(p);
+    return p;
+  }
+
+  function fillLive(p) {
+    p.classList.toggle("is-off", geo.state === "off");
+    p.textContent = geo.state === "off"
+      ? "Location off: allow location for ETIKE to record this trip."
+      : geo.lastSent
+        ? `Sharing your location · last sent ${new Date(geo.lastSent).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+        : "Sharing your location. Keep this page open during the ride.";
+  }
+
+  function updateLiveLines() {
+    document.querySelectorAll("[data-live]").forEach(fillLive);
   }
 
   // A banner for every payment that came in since the last check.

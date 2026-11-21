@@ -262,4 +262,5 @@ Then, on a phone: sign up as a passenger, search a real route, book a ride, canc
 - [ ] HTTPS is on and SSL Labs gives an A.
 - [ ] The admin password is long and stored in a password manager; `ADMIN_*` values are removed from `.env` after `create-admin`.
 - [ ] Backups run nightly and a restore has been tested.
+- [ ] Drivers know their location is recorded during rides (it's on their page) and who can see it; decide how long trip records are kept.
 - [ ] Driver documents are only in the `documents` volume (never in Git or `/uploads`), and their backups are `chmod 600`.

@@ -42,7 +42,7 @@ const RwandaMap = (() => {
   const KIGALI_PARTS = ["Nyarugenge", "Gasabo", "Kicukiro"];
   const placeOf = (district) => (KIGALI_PARTS.includes(district) ? "Kigali" : district);
 
-  const DATA_URL = "assets/rwanda-districts.geojson";
+  const DATA_URL = "/assets/rwanda-districts.geojson";
   const ROUTER = "https://router.project-osrm.org/route/v1/driving/";
   const SVG_NS = "http://www.w3.org/2000/svg";
   const WIDTH = 600;
@@ -293,8 +293,46 @@ const RwandaMap = (() => {
       return result;
     }
 
-    return { showTrip };
+    // Draw a recorded trip: the positions the driver's phone sent, in order
+    // ([{lat, lng}]), with a dot where it started and a square where it
+    // ended (or a dot for the car's last position while it is still going).
+    async function showTrack(points, { live = false } = {}) {
+      await ready;
+      if (!project) return;
+      pending?.abort();
+      routeLayer.replaceChildren();
+      endLayer.replaceChildren();
+      tagLayer.replaceChildren();
+      mark(null, null);
+      if (!points.length) return;
+      const xy = points.map((p) => project(p.lng, p.lat));
+      if (xy.length > 1) drawLine(xy, false);
+      const [sx, sy] = xy[0];
+      const [ex, ey] = xy[xy.length - 1];
+      endLayer.append(svgEl("circle", { cx: sx, cy: sy, r: 6, class: "rmap-start" }));
+      tag(`Start, near ${nearest(points[0].lat, points[0].lng)}`, xy[0], "from");
+      if (xy.length > 1 || !live) {
+        endLayer.append(live
+          ? svgEl("circle", { cx: ex, cy: ey, r: 8, class: "rmap-car" })
+          : svgEl("rect", { x: ex - 6, y: ey - 6, width: 12, height: 12, rx: 1.5, class: "rmap-end" }));
+        const last = points[points.length - 1];
+        tag(`${live ? "Now" : "End"}, near ${nearest(last.lat, last.lng)}`, xy[xy.length - 1], "to");
+      }
+    }
+
+    return { showTrip, showTrack };
   }
 
-  return { render, names: Object.keys(TOWNS) };
+  // The district town closest to a position, to say where a trip was.
+  function nearest(lat, lng) {
+    let best = null;
+    let bestD = Infinity;
+    Object.entries(TOWNS).forEach(([name, [tLat, tLng]]) => {
+      const d = (tLat - lat) ** 2 + ((tLng - lng) * Math.cos((lat * Math.PI) / 180)) ** 2;
+      if (d < bestD) { bestD = d; best = name; }
+    });
+    return best;
+  }
+
+  return { render, nearest, names: Object.keys(TOWNS) };
 })();

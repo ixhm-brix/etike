@@ -107,6 +107,12 @@
       } else if (b.status === "confirmed" && b.ride_progress === "in_progress") {
         actions.append(ui.el("span", "cancel-note", "Your driver has started the ride. You pay when it ends."));
       }
+      if (b.status === "confirmed" && b.ride_progress !== "scheduled") {
+        const map = ui.el("a", "btn-gray btn-sm",
+          b.ride_progress === "in_progress" ? "Follow on the map" : "See the trip on the map");
+        map.href = `/trip.html?ride=${b.offer_id}`;
+        actions.append(map);
+      }
     } else {
       actions.append(ui.el("span", `status status-${b.status}`, STATUS[b.status]));
     }

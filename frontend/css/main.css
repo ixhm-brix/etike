@@ -1507,6 +1507,40 @@ a {
   width: 100%;
 }
 
+/* Trip on the map (trip.html) */
+.trip-map {
+  margin-top: 1.25rem;
+}
+#facts dd {
+  white-space: normal;
+}
+.rmap-ends .rmap-car {
+  fill: var(--info);
+  stroke: var(--white);
+  stroke-width: 3;
+}
+.trip-live {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--info);
+  font-weight: 600;
+}
+.trip-live::before {
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--info);
+}
+.trip-live.is-off {
+  color: var(--gray-700);
+}
+.trip-live.is-off::before {
+  background: var(--gray-500);
+}
+
 /* Driver's trips: Start ride / End ride and payments (driver page). */
 .trips {
   display: grid;

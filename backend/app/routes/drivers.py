@@ -253,7 +253,9 @@ def my_rides():
 @drivers_bp.post("/rides/<int:offer_id>/start")
 @role_required("driver")
 def start_ride(offer_id):
-    offer = ride_service.start(current_user().driver, offer_id)
+    # The body may carry where the phone is ({lat, lng, accuracy}); optional.
+    location = ride_service.location_from(request.get_json(silent=True))
+    offer = ride_service.start(current_user().driver, offer_id, location)
     return jsonify({"ride": ride_service.ride_dict(offer)})
 
 
@@ -261,8 +263,27 @@ def start_ride(offer_id):
 @role_required("driver")
 def end_ride(offer_id):
     """End the ride: its passengers can now pay with MoMo."""
-    offer = ride_service.end(current_user().driver, offer_id)
+    location = ride_service.location_from(request.get_json(silent=True))
+    offer = ride_service.end(current_user().driver, offer_id, location)
     return jsonify({"ride": ride_service.ride_dict(offer)})
+
+
+@drivers_bp.post("/rides/<int:offer_id>/locations")
+@role_required("driver")
+def ride_location(offer_id):
+    """Where the car is now, sent by the driver's phone while the ride is on."""
+    location = ride_service.location_from(v.json_body())
+    if location is None:
+        raise bad_request("Send lat and lng.", {"lat": "Required."})
+    saved = ride_service.record(current_user().driver, offer_id, location)
+    return jsonify({"saved": saved}), 201 if saved else 200
+
+
+@drivers_bp.get("/rides/<int:offer_id>/track")
+@role_required()
+def ride_track(offer_id):
+    """The trip record on a map: for the driver, the ride's passengers, admins."""
+    return jsonify(ride_service.trip_record(current_user(), offer_id))
 
 
 @drivers_bp.post("/rides")
