@@ -150,11 +150,7 @@ const RwandaMap = (() => {
       kigali.textContent = "Kigali";
       labels.append(kigali);
 
-      const [lx, ly] = project(29.08, -2.1);
-      const lake = svgEl("text", { x: lx, y: ly, class: "rmap-water" });
-      lake.textContent = "Lake Kivu";
-
-      svg.append(outline, districts, lake, routeLayer, labels, endLayer);
+      svg.append(outline, districts, routeLayer, labels, endLayer);
       stage.append(svg);
 
       tagLayer = document.createElement("div");

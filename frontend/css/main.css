@@ -425,15 +425,6 @@ a {
   font-weight: 700;
   fill: var(--black);
 }
-.rmap-water {
-  font-family: var(--font);
-  font-size: 11px;
-  font-style: italic;
-  fill: var(--gray-500);
-  text-anchor: middle;
-  pointer-events: none;
-}
-
 /* Route: black line on a white casing, drawn from start to end */
 .rmap-route path {
   fill: none;
